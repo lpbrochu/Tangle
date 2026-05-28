@@ -897,11 +897,67 @@
       padding-top: 16px;
     }
 
+    /* COLLAPSIBLE EDITOR DIVIDER BUTTON */
+    .editor-toggle-btn {
+      position: absolute;
+      top: 50%;
+      left: 0;
+      transform: translate(-50%, -50%);
+      width: 20px;
+      height: 44px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      z-index: 95;
+      box-shadow: var(--shadow-premium);
+      transition: var(--transition-smooth);
+      color: var(--text-secondary);
+      pointer-events: auto;
+    }
+
+    .editor-toggle-btn:hover {
+      background: var(--bg-tertiary);
+      color: var(--text-primary);
+      border-color: var(--accent-indigo);
+      box-shadow: 0 0 10px var(--accent-indigo-glow);
+    }
+
+    .editor-toggle-btn svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .editor-toggle-btn.collapsed svg {
+      transform: rotate(180deg);
+    }
+
+    /* COLLAPSE TRANSITION TRIGGER CLASS RULES */
+    body.editor-collapsed .editor-panel {
+      width: 0 !important;
+      border-right-width: 0 !important;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    body.editor-collapsed .graph-panel {
+      width: 100% !important;
+    }
+
     /* RESPONSIVE LAYOUT MEDIA QUERIES */
     @media (max-width: 850px) {
       /* Mobile View Layout: Tabs bar is shown, panels are absolute and toggle active */
       .mobile-tabs-bar {
         display: grid;
+      }
+      
+      .editor-toggle-btn {
+        display: none !important;
       }
 
       main {
@@ -1083,6 +1139,13 @@
 
         <!-- Actual Canvas Element -->
         <div id="graph-canvas" class="canvas-container"></div>
+
+        <!-- Collapsible Editor Button -->
+        <div class="editor-toggle-btn" id="editor-toggle-btn" title="Toggle Markdown Editor Panel">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 18l-6-6 6-6"/>
+          </svg>
+        </div>
 
         <!-- Floating help button -->
         <div class="help-button-floating" id="help-toggle" title="Show navigation help and keyboard hotkeys">?</div>
@@ -2055,6 +2118,22 @@ A non-linear repository of semantic connections.
         if (e.propertyName === 'width' && visNetworkInstance) {
           visNetworkInstance.setSize(); // Force vis.js to update container boundaries
           visNetworkInstance.fit({ animation: { duration: 300 } }); // Smoothly re-center the nodes
+        }
+      });
+
+      // Collapsible Editor Panel toggle action
+      const editorToggleBtn = document.getElementById('editor-toggle-btn');
+      editorToggleBtn.addEventListener('click', () => {
+        document.body.classList.toggle('editor-collapsed');
+        editorToggleBtn.classList.toggle('collapsed');
+      });
+
+      // Recalculate Vis.js view scale smoothly when editor transitions its width
+      const editorSidePanel = document.getElementById('editor-side');
+      editorSidePanel.addEventListener('transitionend', (e) => {
+        if (e.propertyName === 'width' && visNetworkInstance) {
+          visNetworkInstance.setSize(); // Recalculate container dimensions
+          visNetworkInstance.fit({ animation: { duration: 300 } }); // Centered fit camera
         }
       });
 
