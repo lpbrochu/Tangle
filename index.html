@@ -2057,6 +2057,31 @@ A non-linear repository of semantic connections.
           visNetworkInstance.fit({ animation: { duration: 300 } }); // Smoothly re-center the nodes
         }
       });
+
+      // Trackpad 2-finger panning vs pinch-to-zoom optimization for Mac/Trackpad users
+      const canvasContainer = document.getElementById('graph-canvas');
+      canvasContainer.addEventListener('wheel', (e) => {
+        if (e.ctrlKey) {
+          // Pinch-to-zoom: let vis.js handle zooming natively
+          return;
+        }
+        
+        // Two-finger swipe: pan the canvas instead of zooming
+        e.preventDefault();
+        
+        if (visNetworkInstance) {
+          const scale = visNetworkInstance.getScale();
+          const pos = visNetworkInstance.getViewPosition();
+          
+          // Smoothly move the camera by scrolling offsets adjusted for the current zoom scale
+          visNetworkInstance.moveTo({
+            position: {
+              x: pos.x + e.deltaX / scale,
+              y: pos.y + e.deltaY / scale
+            }
+          });
+        }
+      }, { passive: false });
       
       // Add connection actions
       cardAddLinkBtn.addEventListener('click', executeAddLink);
