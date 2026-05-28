@@ -1,0 +1,1982 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Semantic Web Editor - Networked Markdown Thought-Graph</title>
+  <meta name="description" content="A premium, dark-mode split screen markdown editor and interactive force-directed thought-graph engine. Parse wiki-links in real-time to build a networked knowledge graph.">
+  <meta name="color-scheme" content="dark">
+  
+  <!-- Modern Typography from Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;500&family=Outfit:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- Vis.js CDN (Network module only) -->
+  <script src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+
+  <style>
+    /* CSS DESIGN SYSTEM & TOKENS */
+    :root {
+      --bg-primary: #070913;      /* Deep dark cosmic background */
+      --bg-secondary: #0f1322;    /* Dark slate panel background */
+      --bg-tertiary: #171d33;     /* Hover and highlight items */
+      --bg-card: rgba(15, 19, 34, 0.75); /* Translucent glassmorphic cards */
+      --border-color: rgba(255, 255, 255, 0.06);
+      --border-color-hover: rgba(255, 255, 255, 0.12);
+      
+      --text-primary: #f8fafc;    /* Clean off-white */
+      --text-secondary: #94a3b8;  /* Muted blue-gray text */
+      --text-muted: #64748b;
+      
+      --accent-indigo: #6366f1;   /* Primary branding color */
+      --accent-indigo-hover: #818cf8;
+      --accent-indigo-glow: rgba(99, 102, 241, 0.25);
+      
+      --accent-cyan: #06b6d4;     /* Secondary branding (edges, glows) */
+      --accent-cyan-hover: #22d3ee;
+      --accent-cyan-glow: rgba(6, 182, 212, 0.25);
+      
+      --accent-emerald: #10b981;  /* Success (Defined Node Badge) */
+      --accent-amber: #f59e0b;    /* Warning (Stub Node Badge) */
+      
+      --font-ui: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
+      --font-mono: 'Fira Code', monospace;
+      
+      --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      --shadow-premium: 0 10px 30px -10px rgba(0, 0, 0, 0.7);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--font-ui);
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* CUSTOM SCROLLBARS */
+    /* Modern standard scrollbars */
+    * {
+      scrollbar-color: var(--accent-indigo) var(--bg-primary);
+      scrollbar-width: thin;
+    }
+
+    /* Legacy Webkit scrollbars (fallback for older browsers wrapped in supports) */
+    @supports not (scrollbar-color: auto) {
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      ::-webkit-scrollbar-track {
+        background: var(--bg-primary);
+      }
+      ::-webkit-scrollbar-thumb {
+        background: var(--accent-indigo);
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: var(--accent-indigo-hover);
+      }
+    }
+
+    /* HEADER SYSTEM */
+    header {
+      height: 64px;
+      background: rgba(15, 19, 34, 0.4);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 24px;
+      z-index: 100;
+    }
+
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent-indigo), var(--accent-cyan));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 15px var(--accent-indigo-glow);
+    }
+
+    .logo-icon svg {
+      width: 18px;
+      height: 18px;
+      fill: #fff;
+    }
+
+    h1 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      background: linear-gradient(to right, #fff, var(--text-secondary));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .version-tag {
+      font-size: 0.7rem;
+      background: rgba(99, 102, 241, 0.15);
+      border: 1px solid rgba(99, 102, 241, 0.3);
+      color: var(--accent-indigo-hover);
+      padding: 2px 8px;
+      border-radius: 20px;
+      font-weight: 500;
+      margin-left: 8px;
+    }
+
+    /* STATS HEADER PILLS */
+    .graph-stats {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+
+    @media (max-width: 1024px) {
+      .graph-stats {
+        display: none; /* Hide stats in header on smaller screens */
+      }
+    }
+
+    .stat-pill {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      padding: 4px 12px;
+      border-radius: 30px;
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .stat-pill strong {
+      color: var(--text-primary);
+    }
+
+    .stat-indicator {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+    }
+    .stat-indicator.defined { background-color: var(--accent-indigo); box-shadow: 0 0 8px var(--accent-indigo); }
+    .stat-indicator.stubs { background-color: var(--accent-amber); box-shadow: 0 0 8px var(--accent-amber); }
+    .stat-indicator.edges { background-color: var(--accent-cyan); box-shadow: 0 0 8px var(--accent-cyan); }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-family: var(--font-ui);
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: var(--transition-smooth);
+    }
+
+    .btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      border-color: var(--border-color-hover);
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent-indigo), #4f46e5);
+      border: none;
+      box-shadow: 0 4px 12px rgba(99, 102, 241, 0.2);
+    }
+
+    .btn-primary:hover {
+      background: linear-gradient(135deg, var(--accent-indigo-hover), var(--accent-indigo));
+      box-shadow: 0 6px 16px rgba(99, 102, 241, 0.35);
+      transform: translateY(-1px);
+    }
+
+    .btn-secondary {
+      background: rgba(6, 182, 212, 0.1);
+      border: 1px solid rgba(6, 182, 212, 0.2);
+      color: var(--accent-cyan-hover);
+    }
+
+    .btn-secondary:hover {
+      background: rgba(6, 182, 212, 0.18);
+      border-color: rgba(6, 182, 212, 0.4);
+    }
+
+    .icon-btn {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      justify-content: center;
+      border-radius: 8px;
+    }
+
+    /* MAIN CONTAINER SYSTEM */
+    main {
+      flex: 1;
+      display: flex;
+      height: calc(100vh - 64px);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* MOBILE TABS BAR */
+    .mobile-tabs-bar {
+      display: none;
+      height: 48px;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-secondary);
+      grid-template-columns: 1fr 1fr;
+      z-index: 90;
+    }
+
+    .mobile-tabs-bar button {
+      background: transparent;
+      border: none;
+      border-bottom: 2px solid transparent;
+      color: var(--text-secondary);
+      font-family: var(--font-ui);
+      font-weight: 500;
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: var(--transition-smooth);
+    }
+
+    .mobile-tabs-bar button.active {
+      color: var(--text-primary);
+      border-color: var(--accent-indigo);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    /* EDITOR PANEL (40% WIDTH) */
+    .editor-panel {
+      width: 40%;
+      height: 100%;
+      border-right: 1px solid var(--border-color);
+      display: flex;
+      flex-direction: column;
+      background: var(--bg-secondary);
+      position: relative;
+      transition: var(--transition-smooth);
+    }
+
+    /* Editor Glowing border flash animation */
+    @keyframes border-flash {
+      0% {
+        border-right-color: var(--accent-cyan);
+        box-shadow: 4px 0 20px rgba(6, 182, 212, 0.15);
+      }
+      100% {
+        border-right-color: var(--border-color);
+        box-shadow: none;
+      }
+    }
+    .editor-panel.editor-highlight-flash {
+      animation: border-flash 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .panel-header {
+      height: 44px;
+      border-bottom: 1px solid var(--border-color);
+      background: rgba(0, 0, 0, 0.15);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 16px;
+    }
+
+    .panel-title {
+      font-size: 0.85rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .panel-title svg {
+      width: 14px;
+      height: 14px;
+      fill: var(--text-muted);
+    }
+
+    .editor-tools {
+      display: flex;
+      gap: 6px;
+    }
+
+    .tool-tag {
+      font-size: 0.75rem;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 3px 8px;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: 500;
+      font-family: var(--font-mono);
+      transition: var(--transition-smooth);
+    }
+
+    .tool-tag:hover {
+      background: rgba(99, 102, 241, 0.12);
+      border-color: rgba(99, 102, 241, 0.3);
+      color: var(--text-primary);
+    }
+
+    /* MONOSPACE TEXTAREA WITH HIGHER-END STYLING */
+    .editor-container {
+      flex: 1;
+      position: relative;
+      display: flex;
+    }
+
+    .markdown-textarea {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      border: none;
+      resize: none;
+      background: transparent;
+      color: #e2e8f0;
+      font-family: var(--font-mono);
+      font-size: 14px;
+      line-height: 1.6;
+      padding: 20px;
+      outline: none;
+      tab-size: 4;
+      -moz-tab-size: 4;
+      transition: var(--transition-smooth);
+    }
+
+    .markdown-textarea:focus {
+      background: rgba(255, 255, 255, 0.005);
+    }
+
+    .editor-footer {
+      height: 32px;
+      border-top: 1px solid var(--border-color);
+      background: rgba(0, 0, 0, 0.1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0 16px;
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .editor-footer span {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* GRAPH CANVAS PANEL (60% WIDTH) */
+    .graph-panel {
+      width: 60%;
+      height: 100%;
+      position: relative;
+      background: var(--bg-primary);
+      display: flex;
+      flex-direction: column;
+      transition: var(--transition-smooth);
+    }
+
+    .canvas-container {
+      flex: 1;
+      width: 100%;
+      height: 100%;
+      position: relative;
+      outline: none;
+    }
+
+    /* SEARCH & FILTER CONTROLS OVERLAY */
+    .canvas-toolbar {
+      position: absolute;
+      top: 16px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      pointer-events: none;
+      z-index: 10;
+      gap: 16px;
+    }
+
+    .toolbar-group {
+      display: flex;
+      gap: 8px;
+      pointer-events: auto;
+      background: rgba(15, 19, 34, 0.6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      padding: 6px;
+      border-radius: 10px;
+      box-shadow: var(--shadow-premium);
+    }
+
+    /* SEARCH INPUT */
+    .search-wrapper {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 240px;
+    }
+
+    @media (max-width: 640px) {
+      .search-wrapper {
+        width: 160px;
+      }
+    }
+
+    .search-input {
+      width: 100%;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 8px 12px 8px 32px;
+      border-radius: 8px;
+      font-family: var(--font-ui);
+      font-size: 0.8rem;
+      outline: none;
+      transition: var(--transition-smooth);
+    }
+
+    .search-input:focus {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: var(--accent-indigo);
+      box-shadow: 0 0 10px rgba(99, 102, 241, 0.2);
+    }
+
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      width: 14px;
+      height: 14px;
+      fill: var(--text-muted);
+      pointer-events: none;
+    }
+
+    /* TOGGLE SWITCH SYSTEM */
+    .toggle-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 0 10px;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: var(--text-secondary);
+      user-select: none;
+      cursor: pointer;
+    }
+
+    .switch {
+      position: relative;
+      display: inline-block;
+      width: 32px;
+      height: 18px;
+    }
+
+    .switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: rgba(255, 255, 255, 0.1);
+      border: 1px solid var(--border-color);
+      transition: .3s;
+      border-radius: 34px;
+    }
+
+    .slider:before {
+      position: absolute;
+      content: "";
+      height: 12px;
+      width: 12px;
+      left: 2px;
+      bottom: 2px;
+      background-color: var(--text-secondary);
+      transition: .3s;
+      border-radius: 50%;
+    }
+
+    input:checked + .slider {
+      background-color: var(--accent-indigo-glow);
+      border-color: var(--accent-indigo);
+    }
+
+    input:checked + .slider:before {
+      transform: translateX(14px);
+      background-color: var(--accent-indigo-hover);
+      box-shadow: 0 0 8px var(--accent-indigo-hover);
+    }
+
+    /* FLOATING DETAILS OVERLAY PANEL */
+    .details-card {
+      position: absolute;
+      bottom: 20px;
+      right: 20px;
+      width: 340px;
+      max-height: 420px;
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: var(--shadow-premium);
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      z-index: 20;
+      opacity: 0;
+      transform: translateY(20px) scale(0.95);
+      pointer-events: none;
+      transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .details-card.active {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 12px;
+    }
+
+    .card-title-group {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      max-width: 85%;
+    }
+
+    .card-title-group h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      letter-spacing: -0.01em;
+      color: #fff;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .badge {
+      display: inline-block;
+      align-self: flex-start;
+      font-size: 0.65rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      padding: 2px 8px;
+      border-radius: 4px;
+    }
+
+    .badge.defined {
+      background: rgba(16, 185, 129, 0.15);
+      border: 1px solid rgba(16, 185, 129, 0.3);
+      color: #34d399;
+    }
+
+    .badge.stub {
+      background: rgba(245, 158, 11, 0.15);
+      border: 1px solid rgba(245, 158, 11, 0.3);
+      color: #fbbf24;
+    }
+
+    .close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.25rem;
+      cursor: pointer;
+      line-height: 1;
+      transition: var(--transition-smooth);
+    }
+
+    .close-btn:hover {
+      color: var(--text-primary);
+    }
+
+    .card-body {
+      flex: 1;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 14px;
+      padding-right: 4px;
+    }
+
+    .card-section {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .card-section label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+    }
+
+    .preview-text {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+      background: rgba(0, 0, 0, 0.15);
+      padding: 10px 12px;
+      border-radius: 8px;
+      border-left: 2px solid var(--accent-indigo);
+      white-space: pre-wrap;
+      max-height: 100px;
+      overflow-y: auto;
+    }
+
+    .preview-text.stub-info {
+      border-left-color: var(--accent-amber);
+      font-style: italic;
+    }
+
+    .chips-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+    }
+
+    .chip {
+      font-size: 0.75rem;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      color: var(--text-secondary);
+      padding: 4px 10px;
+      border-radius: 6px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      transition: var(--transition-smooth);
+    }
+
+    .chip:hover {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: rgba(99, 102, 241, 0.3);
+      color: var(--text-primary);
+    }
+
+    .chip.chip-outgoing::after {
+      content: '→';
+      color: var(--accent-cyan);
+    }
+    .chip.chip-incoming::before {
+      content: '←';
+      color: var(--accent-indigo-hover);
+    }
+
+    .no-links {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+
+    .card-footer {
+      display: flex;
+      gap: 10px;
+      border-top: 1px solid var(--border-color);
+      padding-top: 12px;
+    }
+
+    .card-footer button {
+      flex: 1;
+      justify-content: center;
+      padding: 8px 0;
+    }
+
+    /* FLOATING HELP TOGGLE & LEGEND */
+    .help-button-floating {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      z-index: 10;
+      background: rgba(15, 19, 34, 0.6);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--border-color);
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: var(--shadow-premium);
+      transition: var(--transition-smooth);
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .help-button-floating:hover {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: var(--accent-indigo);
+      color: var(--text-primary);
+    }
+
+    /* MODERN MODAL/DIALOG BACKDROP & CONTENT */
+    dialog {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 90%;
+      max-width: 500px;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+      color: var(--text-primary);
+      z-index: 1000;
+      outline: none;
+    }
+
+    dialog::backdrop {
+      background: rgba(5, 7, 18, 0.85);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+
+    .dialog-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 14px;
+      margin-bottom: 16px;
+    }
+
+    .dialog-header h2 {
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    .dialog-body {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.6;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .dialog-body h4 {
+      color: var(--text-primary);
+      font-weight: 600;
+      margin-bottom: 4px;
+      font-size: 0.95rem;
+    }
+
+    .dialog-body ul {
+      padding-left: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .dialog-footer {
+      display: flex;
+      justify-content: flex-end;
+      margin-top: 24px;
+      border-top: 1px solid var(--border-color);
+      padding-top: 16px;
+    }
+
+    /* RESPONSIVE LAYOUT MEDIA QUERIES */
+    @media (max-width: 850px) {
+      /* Mobile View Layout: Tabs bar is shown, panels are absolute and toggle active */
+      .mobile-tabs-bar {
+        display: grid;
+      }
+
+      main {
+        position: relative;
+      }
+
+      .editor-panel {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        border-right: none;
+        z-index: 5;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .graph-panel {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 5;
+        opacity: 0;
+        pointer-events: none;
+      }
+
+      .editor-panel.mobile-active,
+      .graph-panel.mobile-active {
+        opacity: 1;
+        pointer-events: auto;
+        z-index: 10;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- HEADER -->
+  <header>
+    <div class="logo-area">
+      <div class="logo-icon">
+        <svg viewBox="0 0 24 24">
+          <!-- Graph Icon -->
+          <circle cx="6" cy="7" r="2.5"/>
+          <circle cx="18" cy="5" r="2.5"/>
+          <circle cx="12" cy="18" r="2.5"/>
+          <circle cx="19" cy="17" r="2.5"/>
+          <line x1="8.3" y1="6.5" x2="15.7" y2="5.5" stroke="#fff" stroke-width="1.5"/>
+          <line x1="6.8" y1="9.2" x2="10.8" y2="15.8" stroke="#fff" stroke-width="1.5"/>
+          <line x1="17" y1="7.2" x2="13.2" y2="15.8" stroke="#fff" stroke-width="1.5"/>
+          <line x1="13.8" y1="18.2" x2="16.7" y2="17.6" stroke="#fff" stroke-width="1.5"/>
+        </svg>
+      </div>
+      <h1>Semantic Web Editor</h1>
+      <span class="version-tag">Beta v1.0</span>
+    </div>
+
+    <!-- Live Statistics Pill Badges -->
+    <div class="graph-stats">
+      <div class="stat-pill">
+        <span class="stat-indicator defined"></span>
+        Defined: <strong id="stat-defined">0</strong>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-indicator stubs"></span>
+        Stubs: <strong id="stat-stubs">0</strong>
+      </div>
+      <div class="stat-pill">
+        <span class="stat-indicator edges"></span>
+        Connections: <strong id="stat-edges">0</strong>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <button id="reset-btn" class="btn" title="Reset text and graph to the microservice architecture default">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
+        Reset Default
+      </button>
+      <button id="export-json-btn" class="btn" title="Export graph nodes and links as a JSON file">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        Export
+      </button>
+    </div>
+  </header>
+
+  <!-- MOBILE TAB BAR -->
+  <div class="mobile-tabs-bar">
+    <button id="tab-editor" class="tab-btn active">Markdown Editor</button>
+    <button id="tab-graph" class="tab-btn">Knowledge Graph</button>
+  </div>
+
+  <!-- MAIN AREA -->
+  <main>
+    <!-- LEFT PANEL: MONOSPACE MARKDOWN EDITOR -->
+    <section class="editor-panel mobile-active" id="editor-side">
+      <div class="panel-header">
+        <div class="panel-title">
+          <svg viewBox="0 0 24 24">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <line x1="16" y1="13" x2="8" y2="13"/>
+            <line x1="16" y1="17" x2="8" y2="17"/>
+            <polyline points="10 9 9 9 8 9"/>
+          </svg>
+          architecture-notes.md
+        </div>
+        <div class="editor-tools">
+          <span class="tool-tag" id="insert-h1-btn" title="Insert defined node header">+ Node (H1)</span>
+          <span class="tool-tag" id="insert-link-btn" title="Insert wiki-link reference">[[ Link ]]</span>
+        </div>
+      </div>
+      
+      <div class="editor-container">
+        <textarea 
+          id="markdown-editor" 
+          class="markdown-textarea" 
+          placeholder="Start writing thoughts using Markdown H1 headers (# Heading) as nodes and double brackets [[Connection]] as edges..." 
+          spellcheck="false"
+        ></textarea>
+      </div>
+
+      <div class="editor-footer">
+        <span id="editor-counter-lines">0 Lines</span>
+        <span id="editor-counter-words">0 Words</span>
+        <span id="editor-counter-chars">0 Chars</span>
+      </div>
+    </section>
+
+    <!-- RIGHT PANEL: INTERACTIVE FORCE GRAPH -->
+    <section class="graph-panel" id="graph-side">
+      <!-- Toolbar overlay on canvas -->
+      <div class="canvas-toolbar">
+        <div class="toolbar-group">
+          <!-- Search box -->
+          <div class="search-wrapper">
+            <svg class="search-icon" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="8"/>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            </svg>
+            <input 
+              type="text" 
+              id="graph-search" 
+              class="search-input" 
+              placeholder="Search thoughts..." 
+              list="search-suggestions"
+              autocomplete="off"
+            >
+            <datalist id="search-suggestions"></datalist>
+          </div>
+        </div>
+
+        <div class="toolbar-group">
+          <!-- Physics Toggle -->
+          <label class="toggle-wrapper" title="Toggle real-time particle simulation to arrange/lock nodes">
+            <span>Arrange Physics</span>
+            <span class="switch">
+              <input type="checkbox" id="physics-toggle" checked>
+              <span class="slider"></span>
+            </span>
+          </label>
+          
+          <!-- Zoom to Fit Button -->
+          <button id="zoom-fit-btn" class="btn icon-btn" title="Zoom/Pan network to center all thoughts">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Actual Canvas Element -->
+      <div id="graph-canvas" class="canvas-container"></div>
+
+      <!-- Floating help button -->
+      <div class="help-button-floating" id="help-toggle" title="Show navigation help and keyboard hotkeys">?</div>
+
+      <!-- FLOATING DETAILS PANEL OVERLAY -->
+      <div class="details-card" id="details-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h3 id="card-node-name">Node Name</h3>
+            <span id="card-node-badge" class="badge">Defined</span>
+          </div>
+          <button id="card-close-btn" class="close-btn" title="Dismiss details panel">&times;</button>
+        </div>
+        <div class="card-body">
+          <div class="card-section">
+            <label>Thoughts Preview</label>
+            <div id="card-node-preview" class="preview-text">No thoughts recorded yet.</div>
+          </div>
+          <div class="card-section">
+            <label>Outgoing Relations</label>
+            <div id="card-outgoing-links" class="chips-container">
+              <span class="no-links">None</span>
+            </div>
+          </div>
+          <div class="card-section">
+            <label>Incoming References</label>
+            <div id="card-incoming-links" class="chips-container">
+              <span class="no-links">None</span>
+            </div>
+          </div>
+        </div>
+        <div class="card-footer">
+          <button id="card-jump-btn" class="btn btn-primary" title="Scroll text editor and highlight node header">Jump to Editor</button>
+          <button id="card-create-btn" class="btn btn-secondary" style="display: none;" title="Create standard H1 header in markdown to define this stub node">Create Note</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- NATIVE HTML DIALOG HELP MODAL -->
+  <dialog id="help-modal">
+    <div class="dialog-header">
+      <h2>Keyboard & Interaction Guide</h2>
+      <button id="modal-close-btn" class="close-btn">&times;</button>
+    </div>
+    <div class="dialog-body">
+      <div>
+        <h4>Graph Controls</h4>
+        <ul>
+          <li><strong>Drag Background:</strong> Pan around the thought canvas.</li>
+          <li><strong>Scroll Wheel:</strong> Zoom in/out to focus or see overview.</li>
+          <li><strong>Drag Nodes:</strong> Move nodes dynamically to structure ideas manually.</li>
+          <li><strong>Click Node:</strong> High-light the node and its connections; displays full statistics, snippet previews, and link mapping.</li>
+          <li><strong>Click Background:</strong> Clear highlighted focus and hide the preview panel.</li>
+        </ul>
+      </div>
+      <div>
+        <h4>Markdown Architecture Syntax</h4>
+        <ul>
+          <li><strong>Define Node:</strong> Write `# Node Name` on a new line.</li>
+          <li><strong>Connect Node:</strong> Put `[[Target Node Name]]` anywhere in the body text under a header node.</li>
+          <li><strong>Stub Nodes:</strong> Linking to nodes not defined yet creates a dotted "stub" node. Click it on the graph and click <em>Create Note</em> to initialize it instantly!</li>
+        </ul>
+      </div>
+    </div>
+    <div class="dialog-footer">
+      <button id="modal-ok-btn" class="btn btn-primary">Got it</button>
+    </div>
+  </dialog>
+
+  <!-- CORE LOGIC & DYNAMICS -->
+  <script>
+    // DEFAULT ARCHITECTURE NOTES AND CONNECTIONS
+    const DEFAULT_MARKDOWN = `# Semantic Web Editor
+This is the core entry point of the [[Semantic Web Editor]] project. It coordinates a split-screen markdown editor on the left with a highly reactive [[Vis.js Graph Engine]] on the right.
+
+The editor uses a custom-tuned [[Debouncer Utility]] to parse text without causing main-thread stuttering or rendering lag. The goal of this application is to support organic, bidirectional knowledge mapping: a true [[Knowledge Graph]] that solves traditional linear hierarchy constraints.
+
+# Vis.js Graph Engine
+The rendering engine is built on Vis.js, utilizing a canvas particle system. It is responsible for:
+- Live spring-physics positioning.
+- Node styles (defined vs stub) and glowing drop shadows.
+- Micro-interactions: clicking a node dims unrelated paths and opens the floating details interface.
+- Resolving bidirectional connections to stubs such as [[UI Layout System]].
+
+# Debouncer Utility
+A critical utility script designed to limit execution frequency.
+- Monitors input changes, waiting for a 300ms idle period before running the [[Markdown Parser]].
+- Prevents expensive graph rebuilds or math-heavy physics calculations on every single keystroke.
+- Maintains high typing performance even with long documents.
+
+# Markdown Parser
+A state-machine written in vanilla JavaScript. It reads the editor's text block line-by-line:
+1. Recognizes H1 headings (\`# Title\`) to create nodes.
+2. Extracts Wiki-style double brackets (\`[[Reference]]\`) under headers to form directed relationships.
+3. Distinguishes fully defined content nodes from unresolved [[Stub Nodes]].
+4. Relies on the [[Debouncer Utility]] to orchestrate visual synchronization.
+
+# Knowledge Graph
+A non-linear repository of semantic connections.
+- Enables thoughts to act as nodes and links to act as edges.
+- Supports many-to-many directed relationships (leaves connecting to multiple parents).
+- Highly popularized by modern tools like Obsidian, Roam, and this [[Semantic Web Editor]].
+`;
+
+    // APP GLOBAL STATES
+    let visNetworkInstance = null;
+    const nodesDataSet = new vis.DataSet();
+    const edgesDataSet = new vis.DataSet();
+    
+    // Map tracking defined nodes: Name -> { name, contentText, startLine, endLine }
+    let definedNodesMap = new Map();
+    // Set tracking stubs: Set of Names
+    let stubNodesSet = new Set();
+    
+    // Currently highlighted node
+    let currentlySelectedNodeId = null;
+
+    // DOM ELEMENTS
+    const markdownEditor = document.getElementById('markdown-editor');
+    const statDefined = document.getElementById('stat-defined');
+    const statStubs = document.getElementById('stat-stubs');
+    const statEdges = document.getElementById('stat-edges');
+    const lineCounter = document.getElementById('editor-counter-lines');
+    const wordCounter = document.getElementById('editor-counter-words');
+    const charCounter = document.getElementById('editor-counter-chars');
+    const searchInput = document.getElementById('graph-search');
+    const suggestionsDatalist = document.getElementById('search-suggestions');
+    const physicsToggle = document.getElementById('physics-toggle');
+    const zoomFitBtn = document.getElementById('zoom-fit-btn');
+    const resetBtn = document.getElementById('reset-btn');
+    const exportBtn = document.getElementById('export-json-btn');
+    
+    // Mobile Navigation tabs
+    const tabEditor = document.getElementById('tab-editor');
+    const tabGraph = document.getElementById('tab-graph');
+    const editorSide = document.getElementById('editor-side');
+    const graphSide = document.getElementById('graph-side');
+
+    // Details panel DOM Elements
+    const detailsCard = document.getElementById('details-card');
+    const cardNodeName = document.getElementById('card-node-name');
+    const cardNodeBadge = document.getElementById('card-node-badge');
+    const cardCloseBtn = document.getElementById('card-close-btn');
+    const cardNodePreview = document.getElementById('card-node-preview');
+    const cardOutgoingLinks = document.getElementById('card-outgoing-links');
+    const cardIncomingLinks = document.getElementById('card-incoming-links');
+    const cardJumpBtn = document.getElementById('card-jump-btn');
+    const cardCreateBtn = document.getElementById('card-create-btn');
+
+    // Help modal DOM Elements
+    const helpToggle = document.getElementById('help-toggle');
+    const helpModal = document.getElementById('help-modal');
+    const modalCloseBtn = document.getElementById('modal-close-btn');
+    const modalOkBtn = document.getElementById('modal-ok-btn');
+
+    // INITIALIZATION
+    window.addEventListener('DOMContentLoaded', () => {
+      // 1. Preload Default Markdown
+      markdownEditor.value = DEFAULT_MARKDOWN;
+      
+      // 2. Build Vis Network
+      initVisNetwork();
+      
+      // 3. Process Initial Text
+      parseAndUpdate();
+      
+      // 4. Zoom to fit initially after stabilization
+      setTimeout(() => {
+        if (visNetworkInstance) {
+          visNetworkInstance.fit({ animation: { duration: 600 } });
+        }
+      }, 500);
+
+      // 5. Setup Listeners
+      setupEventListeners();
+    });
+
+    // 1. INITIALIZE VIS.JS GRAPH
+    function initVisNetwork() {
+      const container = document.getElementById('graph-canvas');
+      const data = {
+        nodes: nodesDataSet,
+        edges: edgesDataSet
+      };
+
+      // Custom high-end visual configuration
+      const options = {
+        nodes: {
+          shape: 'box',
+          margin: { top: 12, bottom: 12, left: 18, right: 18 },
+          borderWidth: 2,
+          shadow: {
+            enabled: true,
+            color: 'rgba(99, 102, 241, 0.25)',
+            size: 12,
+            x: 0,
+            y: 0
+          },
+          font: {
+            color: '#f8fafc',
+            size: 14,
+            face: "'Outfit', 'Inter', system-ui, -apple-system, sans-serif",
+            bold: {
+              color: '#ffffff',
+              size: 14
+            }
+          },
+          shapeProperties: {
+            borderRadius: 10
+          }
+        },
+        edges: {
+          width: 1.5,
+          color: {
+            color: 'rgba(148, 163, 184, 0.25)',
+            highlight: '#06b6d4',
+            hover: '#06b6d4'
+          },
+          arrows: {
+            to: {
+              enabled: true,
+              scaleFactor: 0.85,
+              type: 'arrow'
+            }
+          },
+          smooth: {
+            enabled: true,
+            type: 'cubicBezier',
+            roundness: 0.4
+          }
+        },
+        groups: {
+          defined: {
+            color: {
+              background: '#12182c',
+              border: '#6366f1',
+              highlight: {
+                background: '#18213b',
+                border: '#818cf8'
+              },
+              hover: {
+                background: '#161e36',
+                border: '#818cf8'
+              }
+            },
+            borderWidth: 2
+          },
+          stub: {
+            color: {
+              background: '#0d101a',
+              border: 'rgba(148, 163, 184, 0.35)',
+              highlight: {
+                background: '#141829',
+                border: '#f59e0b'
+              },
+              hover: {
+                background: '#111422',
+                border: '#f59e0b'
+              }
+            },
+            borderWidth: 1.5,
+            shapeProperties: {
+              borderRadius: 10,
+              borderDashes: [4, 4] // Dotted aesthetic to denote stubs
+            },
+            shadow: {
+              enabled: true,
+              color: 'rgba(0, 0, 0, 0.3)',
+              size: 6,
+              x: 0,
+              y: 0
+            }
+          }
+        },
+        physics: {
+          enabled: true,
+          barnesHut: {
+            gravitationalConstant: -2200,
+            centralGravity: 0.25,
+            springLength: 140,
+            springConstant: 0.04,
+            damping: 0.09,
+            avoidOverlap: 1.0
+          },
+          stabilization: {
+            enabled: true,
+            iterations: 150,
+            updateInterval: 25
+          }
+        },
+        interaction: {
+          hover: true,
+          tooltipDelay: 300,
+          selectConnectedEdges: false // We program our own connection highlights for superior polish
+        }
+      };
+
+      visNetworkInstance = new vis.Network(container, data, options);
+
+      // Handle Node Clicks
+      visNetworkInstance.on("click", function (params) {
+        if (params.nodes.length > 0) {
+          const clickedNodeId = params.nodes[0];
+          currentlySelectedNodeId = clickedNodeId;
+          highlightNeighborhood(clickedNodeId);
+          showDetailsCard(clickedNodeId);
+        } else {
+          clearHighlighting();
+        }
+      });
+      
+      // Stop dynamic physics arrangement once stabilized
+      visNetworkInstance.on("stabilizationIterationsDone", function () {
+        console.log("Graph layout stabilized.");
+      });
+    }
+
+    // 2. PARSING & LIVE SYNCING ENGINE
+    function parseAndUpdate() {
+      const text = markdownEditor.value;
+      
+      // Compute line, word, character counts
+      updateTextMetrics(text);
+
+      const lines = text.split('\n');
+      const parsedDefinedNodes = new Map();
+      const rawEdges = [];
+      const allReferences = new Set();
+      
+      let currentNodeName = null;
+      let currentContent = [];
+      let currentStartLine = 0;
+      
+      // Pass 1: Extract Defined Nodes and their text content
+      for (let i = 0; i < lines.length; i++) {
+        const line = lines[i];
+        const headingMatch = line.match(/^#\s+(.+)$/);
+        
+        if (headingMatch) {
+          // If we had a previous node, finalize its details
+          if (currentNodeName) {
+            parsedDefinedNodes.set(currentNodeName, {
+              name: currentNodeName,
+              contentText: currentContent.join('\n').trim(),
+              startLine: currentStartLine,
+              endLine: i - 1
+            });
+          }
+          
+          // Set new active node
+          currentNodeName = headingMatch[1].trim();
+          currentContent = [];
+          currentStartLine = i;
+        } else {
+          if (currentNodeName) {
+            currentContent.push(line);
+          }
+        }
+      }
+      
+      // Save trailing node
+      if (currentNodeName) {
+        parsedDefinedNodes.set(currentNodeName, {
+          name: currentNodeName,
+          contentText: currentContent.join('\n').trim(),
+          startLine: currentStartLine,
+          endLine: lines.length - 1
+        });
+      }
+
+      // Pass 2: Search content blocks for [[Wiki-Links]] to build directed relationships
+      const wikiLinkRegex = /\[\[(.*?)\]\]/g;
+      
+      parsedDefinedNodes.forEach((nodeInfo, nodeName) => {
+        let match;
+        const bodyText = nodeInfo.contentText;
+        wikiLinkRegex.lastIndex = 0;
+        
+        while ((match = wikiLinkRegex.exec(bodyText)) !== null) {
+          // Extract name. Support Obsidian piped labels: [[Actual Node|Label]]
+          const targetName = match[1].split('|')[0].trim();
+          if (targetName && targetName !== nodeName) {
+            rawEdges.push({
+              id: `${nodeName}->${targetName}`,
+              from: nodeName,
+              to: targetName
+            });
+            allReferences.add(targetName);
+          }
+        }
+      });
+
+      // Update globals
+      definedNodesMap = parsedDefinedNodes;
+      
+      // Determine stub nodes (referenced but lacking an H1 header block)
+      stubNodesSet = new Set();
+      allReferences.forEach(ref => {
+        if (!definedNodesMap.has(ref)) {
+          stubNodesSet.add(ref);
+        }
+      });
+
+      // Format Node Array for Vis.js DataSet
+      const visNodes = [];
+      
+      // Defined Nodes
+      definedNodesMap.forEach((info, name) => {
+        visNodes.push({
+          id: name,
+          label: name,
+          group: 'defined',
+          title: `Defined Node: ${name}`
+        });
+      });
+      
+      // Stub Nodes
+      stubNodesSet.forEach(name => {
+        visNodes.push({
+          id: name,
+          label: name,
+          group: 'stub',
+          title: `Stub Node (Uncreated): ${name}`
+        });
+      });
+
+      // Sync data changes onto Vis Canvas dynamically
+      syncVisDataSets(visNodes, rawEdges);
+      
+      // Update statistics badges in header
+      statDefined.textContent = definedNodesMap.size;
+      statStubs.textContent = stubNodesSet.size;
+      statEdges.textContent = rawEdges.length;
+
+      // Update Search Suggestions dropdown
+      updateSearchSuggestions();
+
+      // If a card is active, refresh its content in case text was typed
+      if (currentlySelectedNodeId) {
+        showDetailsCard(currentlySelectedNodeId);
+      }
+    }
+
+    // DEBOUNCED INPUT WATCHER
+    let parseDebounceTimer;
+    function debounceParse() {
+      clearTimeout(parseDebounceTimer);
+      parseDebounceTimer = setTimeout(parseAndUpdate, 300);
+    }
+
+    // SYNC NEW DATA INTO VIS DATASETS TO AVOID FULL REDRAW JUMPS
+    function syncVisDataSets(newNodes, newEdges) {
+      // 1. Sync Nodes
+      const existingNodeIds = nodesDataSet.getIds();
+      const newNodeIds = newNodes.map(n => n.id);
+      
+      // Delete old nodes
+      const nodesToRemove = existingNodeIds.filter(id => !newNodeIds.includes(id));
+      nodesDataSet.remove(nodesToRemove);
+      
+      // Add or update existing nodes
+      newNodes.forEach(node => {
+        const existingNode = nodesDataSet.get(node.id);
+        if (!existingNode) {
+          nodesDataSet.add(node);
+        } else {
+          // Update details (e.g. changing from stub to defined)
+          if (existingNode.group !== node.group || existingNode.label !== node.label) {
+            nodesDataSet.update(node);
+          }
+        }
+      });
+
+      // 2. Sync Edges
+      const existingEdgeIds = edgesDataSet.getIds();
+      const newEdgeIds = newEdges.map(e => e.id);
+      
+      // Delete old edges
+      const edgesToRemove = existingEdgeIds.filter(id => !newEdgeIds.includes(id));
+      edgesDataSet.remove(edgesToRemove);
+      
+      // Add new edges
+      newEdges.forEach(edge => {
+        if (!edgesDataSet.get(edge.id)) {
+          edgesDataSet.add(edge);
+        }
+      });
+
+      // Maintain current highlighted focus if a node is selected
+      if (currentlySelectedNodeId) {
+        if (nodesDataSet.get(currentlySelectedNodeId)) {
+          highlightNeighborhood(currentlySelectedNodeId);
+        } else {
+          clearHighlighting();
+        }
+      }
+    }
+
+    // 3. GRAPH NEIGHBORHOOD HIGHLIGHTING FLOW
+    function highlightNeighborhood(selectedId) {
+      if (!selectedId) return;
+
+      // Find all adjacent links
+      const adjacentEdges = edgesDataSet.get({
+        filter: (edge) => edge.from === selectedId || edge.to === selectedId
+      });
+
+      // Create a set of connected node IDs
+      const connectedNodeIds = new Set([selectedId]);
+      adjacentEdges.forEach(edge => {
+        connectedNodeIds.add(edge.from);
+        connectedNodeIds.add(edge.to);
+      });
+
+      // 1. Modify Node opacity and color
+      const allNodes = nodesDataSet.get();
+      allNodes.forEach(node => {
+        const isSelected = node.id === selectedId;
+        const isConnected = connectedNodeIds.has(node.id);
+        const isStub = node.group === 'stub';
+
+        if (isSelected) {
+          nodesDataSet.update({
+            id: node.id,
+            color: {
+              background: isStub ? '#1d1912' : '#1e2448',
+              border: isStub ? '#f59e0b' : '#38bdf8',
+            },
+            font: { color: '#ffffff' },
+            opacity: 1
+          });
+        } else if (isConnected) {
+          nodesDataSet.update({
+            id: node.id,
+            color: undefined, // Restore group default colors
+            font: { color: isStub ? '#cbd5e1' : '#f8fafc' },
+            opacity: 1
+          });
+        } else {
+          // Dim unrelated nodes significantly
+          nodesDataSet.update({
+            id: node.id,
+            color: {
+              background: 'rgba(15, 23, 42, 0.1)',
+              border: 'rgba(148, 163, 184, 0.08)'
+            },
+            font: { color: 'rgba(148, 163, 184, 0.15)' },
+            opacity: 0.15
+          });
+        }
+      });
+
+      // 2. Modify Edge opacity and highlight outgoing vs incoming distinctively
+      const allEdges = edgesDataSet.get();
+      allEdges.forEach(edge => {
+        const isConnected = edge.from === selectedId || edge.to === selectedId;
+        if (isConnected) {
+          const isOutgoing = edge.from === selectedId;
+          edgesDataSet.update({
+            id: edge.id,
+            color: {
+              color: isOutgoing ? '#38bdf8' : '#818cf8', // Outgoing is cyan, Incoming is indigo
+              inherit: false
+            },
+            width: 3,
+            opacity: 1
+          });
+        } else {
+          edgesDataSet.update({
+            id: edge.id,
+            color: 'rgba(255, 255, 255, 0.015)',
+            width: 1,
+            opacity: 0.08
+          });
+        }
+      });
+    }
+
+    // Reset Highlighting
+    function clearHighlighting() {
+      currentlySelectedNodeId = null;
+      
+      const allNodes = nodesDataSet.get();
+      allNodes.forEach(node => {
+        const isStub = node.group === 'stub';
+        nodesDataSet.update({
+          id: node.id,
+          color: undefined, // restore styles
+          font: { color: isStub ? '#94a3b8' : '#f8fafc' },
+          opacity: 1
+        });
+      });
+
+      const allEdges = edgesDataSet.get();
+      allEdges.forEach(edge => {
+        edgesDataSet.update({
+          id: edge.id,
+          color: undefined,
+          width: 1.5,
+          opacity: 1
+        });
+      });
+
+      hideDetailsCard();
+    }
+
+    // 4. FLOATING PREVIEW CARD MANAGEMENT
+    function showDetailsCard(nodeId) {
+      const isDefined = definedNodesMap.has(nodeId);
+      
+      cardNodeName.textContent = nodeId;
+      detailsCard.classList.add('active');
+
+      // Setup Badge
+      cardNodeBadge.textContent = isDefined ? "Defined" : "Stub";
+      cardNodeBadge.className = `badge ${isDefined ? 'defined' : 'stub'}`;
+
+      // Setup Content Snippet
+      if (isDefined) {
+        const nodeInfo = definedNodesMap.get(nodeId);
+        // Strips surrounding double brackets from the text preview so it reads clean
+        let cleanText = nodeInfo.contentText.replace(/\[\[(.*?)\]\]/g, '$1');
+        
+        if (!cleanText) {
+          cleanText = "(No descriptive text typed yet under this node header.)";
+        }
+        
+        cardNodePreview.textContent = cleanText;
+        cardNodePreview.classList.remove('stub-info');
+        
+        cardJumpBtn.style.display = 'block';
+        cardCreateBtn.style.display = 'none';
+      } else {
+        cardNodePreview.textContent = `This node is referenced in wiki-links but has not been defined yet. Click "Create Note" below to write thoughts for this node in the editor.`;
+        cardNodePreview.classList.add('stub-info');
+        
+        cardJumpBtn.style.display = 'none';
+        cardCreateBtn.style.display = 'block';
+      }
+
+      // Populate Connection Chips
+      populateConnectionChips(nodeId);
+    }
+
+    function hideDetailsCard() {
+      detailsCard.classList.remove('active');
+    }
+
+    function populateConnectionChips(nodeId) {
+      cardOutgoingLinks.innerHTML = '';
+      cardIncomingLinks.innerHTML = '';
+
+      const outgoing = [];
+      const incoming = [];
+
+      edgesDataSet.get().forEach(edge => {
+        if (edge.from === nodeId) outgoing.push(edge.to);
+        if (edge.to === nodeId) incoming.push(edge.from);
+      });
+
+      // Outgoing Link Chips
+      if (outgoing.length > 0) {
+        outgoing.forEach(target => {
+          const chip = document.createElement('span');
+          chip.className = 'chip chip-outgoing';
+          chip.textContent = target;
+          chip.addEventListener('click', () => selectAndFocusNode(target));
+          cardOutgoingLinks.appendChild(chip);
+        });
+      } else {
+        cardOutgoingLinks.innerHTML = '<span class="no-links">None</span>';
+      }
+
+      // Incoming Link Chips
+      if (incoming.length > 0) {
+        incoming.forEach(source => {
+          const chip = document.createElement('span');
+          chip.className = 'chip chip-incoming';
+          chip.textContent = source;
+          chip.addEventListener('click', () => selectAndFocusNode(source));
+          cardIncomingLinks.appendChild(chip);
+        });
+      } else {
+        cardIncomingLinks.innerHTML = '<span class="no-links">None</span>';
+      }
+    }
+
+    // SELECTS, HIGHLIGHTS, AND PLACES VIS.JS CAMERA ON TARGET NODE
+    function selectAndFocusNode(nodeId) {
+      currentlySelectedNodeId = nodeId;
+      if (visNetworkInstance) {
+        visNetworkInstance.selectNodes([nodeId]);
+        highlightNeighborhood(nodeId);
+        showDetailsCard(nodeId);
+        visNetworkInstance.focus(nodeId, {
+          scale: 1.15,
+          animation: {
+            duration: 500,
+            easingFunction: 'easeInOutQuad'
+          }
+        });
+      }
+    }
+
+    // 5. EDITOR JUMP AND HIGHLIGHT ACTION
+    function jumpToNodeInEditor(nodeId) {
+      const text = markdownEditor.value;
+      const lines = text.split('\n');
+      const targetHeader = `# ${nodeId}`;
+      
+      let targetLineIndex = -1;
+      let characterIndexAccumulator = 0;
+      
+      for (let i = 0; i < lines.length; i++) {
+        if (lines[i].trim() === targetHeader) {
+          targetLineIndex = i;
+          break;
+        }
+        characterIndexAccumulator += lines[i].length + 1; // Count characters plus newline
+      }
+
+      if (targetLineIndex !== -1) {
+        // Switch to editor tab in mobile layout if active
+        if (window.innerWidth <= 850) {
+          activateTab('editor');
+        }
+
+        markdownEditor.focus();
+        // Highlight H1 line
+        markdownEditor.setSelectionRange(
+          characterIndexAccumulator, 
+          characterIndexAccumulator + lines[targetLineIndex].length
+        );
+
+        // Scroll editor textarea to place the line in the center of viewport
+        const lineHeight = 22.4; // Matches Fira Code line-height (1.6 * 14px)
+        markdownEditor.scrollTop = Math.max(0, (targetLineIndex * lineHeight) - (markdownEditor.clientHeight / 2));
+
+        // Premium glow flash animation on the editor borders
+        const editorSideWrapper = document.getElementById('editor-side');
+        editorSideWrapper.classList.remove('editor-highlight-flash');
+        void editorSideWrapper.offsetWidth; // Trigger reflow to restart animation
+        editorSideWrapper.classList.add('editor-highlight-flash');
+      }
+    }
+
+    // 6. STUB NODE CONVERSION ACTION
+    function convertStubToDefined(nodeId) {
+      let text = markdownEditor.value;
+      
+      // Ensure clean separator
+      if (text.length > 0 && !text.endsWith('\n')) {
+        text += '\n';
+      }
+      if (!text.endsWith('\n\n')) {
+        text += '\n';
+      }
+
+      text += `# ${nodeId}\nWrite your thoughts for [[${nodeId}]] here...\n`;
+      markdownEditor.value = text;
+
+      // Sync and force layout recalculation
+      parseAndUpdate();
+
+      // Give graph short timeframe to add node before shifting user focus
+      setTimeout(() => {
+        selectAndFocusNode(nodeId);
+        jumpToNodeInEditor(nodeId);
+      }, 120);
+    }
+
+    // 7. UTILITY FUNCTIONS
+    function updateTextMetrics(text) {
+      const lines = text.split('\n');
+      lineCounter.textContent = `${lines.length} Lines`;
+
+      const charCount = text.length;
+      charCounter.textContent = `${charCount} Chars`;
+
+      const words = text.trim().split(/\s+/).filter(w => w.length > 0);
+      wordCounter.textContent = `${words.length} Words`;
+    }
+
+    // Insert tag helper at cursor
+    function insertAtCursor(before, after) {
+      const start = markdownEditor.selectionStart;
+      const end = markdownEditor.selectionEnd;
+      const text = markdownEditor.value;
+      
+      const selection = text.substring(start, end);
+      const replacement = before + selection + after;
+      
+      markdownEditor.value = text.substring(0, start) + replacement + text.substring(end);
+      markdownEditor.focus();
+      
+      // Recalculate cursor index
+      const newPos = start + before.length + selection.length;
+      markdownEditor.setSelectionRange(newPos, newPos);
+      
+      parseAndUpdate();
+    }
+
+    // Search Suggestions population
+    function updateSearchSuggestions() {
+      suggestionsDatalist.innerHTML = '';
+      
+      // Defined node options
+      definedNodesMap.forEach((_, name) => {
+        const option = document.createElement('option');
+        option.value = name;
+        suggestionsDatalist.appendChild(option);
+      });
+
+      // Stub options
+      stubNodesSet.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        suggestionsDatalist.appendChild(option);
+      });
+    }
+
+    // Export Graph JSON Utility
+    function exportGraphData() {
+      const nodes = [];
+      definedNodesMap.forEach((info, name) => {
+        nodes.push({ id: name, type: 'defined', preview: info.contentText });
+      });
+      stubNodesSet.forEach(name => {
+        nodes.push({ id: name, type: 'stub' });
+      });
+
+      const edges = edgesDataSet.get().map(e => ({ from: e.from, to: e.to }));
+      
+      const exportObject = {
+        application: "Semantic Web Editor",
+        exportedAt: new Date().toISOString(),
+        nodes: nodes,
+        edges: edges,
+        rawMarkdown: markdownEditor.value
+      };
+
+      const blob = new Blob([JSON.stringify(exportObject, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `thought-graph-${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    }
+
+    // MOBILE TAB DISPLAY MANAGEMENT
+    function activateTab(tabId) {
+      if (tabId === 'editor') {
+        tabEditor.classList.add('active');
+        tabGraph.classList.remove('active');
+        editorSide.classList.add('mobile-active');
+        graphSide.classList.remove('mobile-active');
+      } else {
+        tabGraph.classList.add('active');
+        tabEditor.classList.remove('active');
+        graphSide.classList.add('mobile-active');
+        editorSide.classList.remove('mobile-active');
+        
+        // Redraw network canvas to adjust size correctly on layout changes
+        if (visNetworkInstance) {
+          setTimeout(() => visNetworkInstance.redraw(), 100);
+        }
+      }
+    }
+
+    // 8. SETUP EVENT LISTENERS
+    function setupEventListeners() {
+      // Editor typing watcher
+      markdownEditor.addEventListener('input', debounceParse);
+
+      // Insert Helpers
+      document.getElementById('insert-h1-btn').addEventListener('click', () => {
+        insertAtCursor('# ', '\nWrite thoughts here...');
+      });
+      document.getElementById('insert-link-btn').addEventListener('click', () => {
+        insertAtCursor('[[', ']]');
+      });
+
+      // Graph search action
+      searchInput.addEventListener('input', (e) => {
+        const query = e.target.value.trim();
+        // If there's an exact match in node list, target it
+        if (nodesDataSet.get(query)) {
+          selectAndFocusNode(query);
+        }
+      });
+      searchInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          const query = searchInput.value.trim();
+          if (nodesDataSet.get(query)) {
+            selectAndFocusNode(query);
+            searchInput.blur();
+          }
+        }
+      });
+
+      // Card action hooks
+      cardCloseBtn.addEventListener('click', clearHighlighting);
+      cardJumpBtn.addEventListener('click', () => {
+        if (currentlySelectedNodeId) {
+          jumpToNodeInEditor(currentlySelectedNodeId);
+        }
+      });
+      cardCreateBtn.addEventListener('click', () => {
+        if (currentlySelectedNodeId) {
+          convertStubToDefined(currentlySelectedNodeId);
+        }
+      });
+
+      // Toolbar Actions
+      physicsToggle.addEventListener('change', (e) => {
+        if (visNetworkInstance) {
+          visNetworkInstance.setOptions({ physics: { enabled: e.target.checked } });
+        }
+      });
+      zoomFitBtn.addEventListener('click', () => {
+        if (visNetworkInstance) {
+          visNetworkInstance.fit({ animation: { duration: 500 } });
+        }
+      });
+
+      // Header Actions
+      resetBtn.addEventListener('click', () => {
+        if (confirm("Are you sure you want to reset the editor to the default architecture notes? All unsaved modifications will be lost.")) {
+          markdownEditor.value = DEFAULT_MARKDOWN;
+          parseAndUpdate();
+          clearHighlighting();
+          if (visNetworkInstance) {
+            visNetworkInstance.fit({ animation: { duration: 500 } });
+          }
+        }
+      });
+      exportBtn.addEventListener('click', exportGraphData);
+
+      // Native help dialog flow
+      helpToggle.addEventListener('click', () => helpModal.showModal());
+      modalCloseBtn.addEventListener('click', () => helpModal.close());
+      modalOkBtn.addEventListener('click', () => helpModal.close());
+      
+      // Close modal on clicking backdrop
+      helpModal.addEventListener('click', (e) => {
+        const rect = helpModal.getBoundingClientRect();
+        const isInDialog = (rect.top <= e.clientY && e.clientY <= rect.top + rect.height &&
+          rect.left <= e.clientX && e.clientX <= rect.left + rect.width);
+        if (!isInDialog) {
+          helpModal.close();
+        }
+      });
+
+      // Mobile Layout Tab Bindings
+      tabEditor.addEventListener('click', () => activateTab('editor'));
+      tabGraph.addEventListener('click', () => activateTab('graph'));
+    }
+  </script>
+</body>
+</html>
