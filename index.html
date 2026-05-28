@@ -1856,7 +1856,7 @@ A non-linear repository of semantic connections.
         text += '\n';
       }
 
-      text += `# ${nodeId}\nWrite your thoughts for [[${nodeId}]] here...\n`;
+      text += `# ${nodeId}\n`;
       markdownEditor.value = text;
 
       // Sync and force layout recalculation
@@ -2001,7 +2001,7 @@ A non-linear repository of semantic connections.
           text += '\n';
         }
 
-        text += `# ${trimmedName}\nWrite your thoughts for [[${trimmedName}]] here...\n`;
+        text += `# ${trimmedName}\n`;
         markdownEditor.value = text;
 
         // Trigger parse
@@ -2022,9 +2022,8 @@ A non-linear repository of semantic connections.
         }, 100);
       });
 
-      // Insert Helpers
       document.getElementById('insert-h1-btn').addEventListener('click', () => {
-        insertAtCursor('# ', '\nWrite thoughts here...');
+        insertAtCursor('# ', '');
       });
       document.getElementById('insert-link-btn').addEventListener('click', () => {
         insertAtCursor('[[', ']]');
