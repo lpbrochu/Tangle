@@ -1289,6 +1289,34 @@ A non-linear repository of semantic connections.
     const zoomFitBtn = document.getElementById('zoom-fit-btn');
     const resetBtn = document.getElementById('reset-btn');
     const exportBtn = document.getElementById('export-json-btn');
+
+    let physicsFailsafeTimeout = null;
+
+    function enablePhysicsTemporarily() {
+      if (!visNetworkInstance) return;
+      
+      if (physicsFailsafeTimeout) {
+        clearTimeout(physicsFailsafeTimeout);
+        physicsFailsafeTimeout = null;
+      }
+      
+      if (physicsToggle) {
+        physicsToggle.checked = true;
+      }
+      
+      visNetworkInstance.setOptions({ physics: { enabled: true } });
+      
+      // Failsafe: stop physics after 3 seconds of movement
+      physicsFailsafeTimeout = setTimeout(() => {
+        console.log("Failsafe: freezing physics to prevent constant movement.");
+        if (visNetworkInstance) {
+          visNetworkInstance.setOptions({ physics: { enabled: false } });
+        }
+        if (physicsToggle) {
+          physicsToggle.checked = false;
+        }
+      }, 3000);
+    }
     
     // Mobile Navigation tabs
     const tabEditor = document.getElementById('tab-editor');
@@ -1458,17 +1486,17 @@ A non-linear repository of semantic connections.
         physics: {
           enabled: true,
           barnesHut: {
-            gravitationalConstant: -2200,
-            centralGravity: 0.25,
-            springLength: 140,
+            gravitationalConstant: -1800,
+            centralGravity: 0.35,
+            springLength: 120,
             springConstant: 0.04,
-            damping: 0.09,
-            avoidOverlap: 1.0
+            damping: 0.38, // Significantly increased damping to absorb energy and stop wiggles rapidly
+            avoidOverlap: 0.8 // Reduces high-frequency bouncing when nodes overlap in dense areas
           },
           stabilization: {
             enabled: true,
-            iterations: 150,
-            updateInterval: 25
+            iterations: 400, // Pre-stabilize for 400 iterations synchronously for a very clean initial render
+            updateInterval: 50
           }
         },
         interaction: {
@@ -1502,9 +1530,26 @@ A non-linear repository of semantic connections.
         }
       });
       
-      // Stop dynamic physics arrangement once stabilized
+      // Stop dynamic physics arrangement once stabilized or iterations finish
       visNetworkInstance.on("stabilizationIterationsDone", function () {
-        console.log("Graph layout stabilized.");
+        console.log("Stabilization iterations done. Freezing physics.");
+        if (physicsFailsafeTimeout) {
+          clearTimeout(physicsFailsafeTimeout);
+          physicsFailsafeTimeout = null;
+        }
+        visNetworkInstance.setOptions({ physics: { enabled: false } });
+        physicsToggle.checked = false; // Sync UI Toggle
+      });
+
+      // Freeze physics automatically once the graph settles (stops wiggling / moving)
+      visNetworkInstance.on("stabilized", function () {
+        console.log("Graph stabilized. Freezing physics to prevent constant movement.");
+        if (physicsFailsafeTimeout) {
+          clearTimeout(physicsFailsafeTimeout);
+          physicsFailsafeTimeout = null;
+        }
+        visNetworkInstance.setOptions({ physics: { enabled: false } });
+        physicsToggle.checked = false; // Sync UI Toggle
       });
     }
 
@@ -1514,6 +1559,10 @@ A non-linear repository of semantic connections.
       
       // Compute line, word, character counts
       updateTextMetrics(text);
+
+      // Track structural counts to auto-toggle physics only when nodes or edges are modified
+      const prevNodeCount = nodesDataSet.getIds().length;
+      const prevEdgeCount = edgesDataSet.getIds().length;
 
       const lines = text.split('\n');
       const parsedDefinedNodes = new Map();
@@ -1642,6 +1691,14 @@ A non-linear repository of semantic connections.
       // If a card is active, refresh its content in case text was typed
       if (currentlySelectedNodeId) {
         showDetailsCard(currentlySelectedNodeId);
+      }
+
+      // Auto-toggle physics ON if structural layout changed, to let the new parts settle
+      const currentNodeCount = nodesDataSet.getIds().length;
+      const currentEdgeCount = edgesDataSet.getIds().length;
+      
+      if (currentNodeCount !== prevNodeCount || currentEdgeCount !== prevEdgeCount) {
+        enablePhysicsTemporarily();
       }
     }
 
@@ -2126,12 +2183,7 @@ A non-linear repository of semantic connections.
         parseAndUpdate();
 
         // Enforce auto-arrange physics to ensure it settles instantly
-        if (!physicsToggle.checked) {
-          physicsToggle.checked = true;
-          if (visNetworkInstance) {
-            visNetworkInstance.setOptions({ physics: { enabled: true } });
-          }
-        }
+        enablePhysicsTemporarily();
 
         // Auto-focus and zoom to the new node
         setTimeout(() => {
@@ -2337,12 +2389,7 @@ A non-linear repository of semantic connections.
           parseAndUpdate();
 
           // Enforce auto-arrange physics to ensure it settles instantly
-          if (!physicsToggle.checked) {
-            physicsToggle.checked = true;
-            if (visNetworkInstance) {
-              visNetworkInstance.setOptions({ physics: { enabled: true } });
-            }
-          }
+          enablePhysicsTemporarily();
 
           // Keep the source node selected
           setTimeout(() => {
@@ -2365,7 +2412,15 @@ A non-linear repository of semantic connections.
       // Toolbar Actions
       physicsToggle.addEventListener('change', (e) => {
         if (visNetworkInstance) {
-          visNetworkInstance.setOptions({ physics: { enabled: e.target.checked } });
+          if (e.target.checked) {
+            enablePhysicsTemporarily();
+          } else {
+            if (physicsFailsafeTimeout) {
+              clearTimeout(physicsFailsafeTimeout);
+              physicsFailsafeTimeout = null;
+            }
+            visNetworkInstance.setOptions({ physics: { enabled: false } });
+          }
         }
       });
       zoomFitBtn.addEventListener('click', () => {
