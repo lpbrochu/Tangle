@@ -1326,12 +1326,13 @@ A non-linear repository of semantic connections.
       // 3. Process Initial Text
       parseAndUpdate();
       
-      // 4. Zoom to fit initially after stabilization
-      setTimeout(() => {
-        if (visNetworkInstance) {
-          visNetworkInstance.fit({ animation: { duration: 600 } });
-        }
-      }, 500);
+      // 4. Auto-select and frame the first defined note from the text on startup
+      if (definedNodesMap.size > 0) {
+        const firstNodeId = definedNodesMap.keys().next().value;
+        setTimeout(() => {
+          selectAndFocusNode(firstNodeId);
+        }, 500); // 500ms allows particles to settle before camera glide
+      }
 
       // 5. Setup Listeners
       setupEventListeners();
