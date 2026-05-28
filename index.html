@@ -1431,6 +1431,28 @@ A non-linear repository of semantic connections.
               x: 0,
               y: 0
             }
+          },
+          root: {
+            color: {
+              background: '#241a08',       /* Deep translucent gold/amber background */
+              border: '#fbbf24',           /* Vibrant gold/yellow border */
+              highlight: {
+                background: '#2c200a',
+                border: '#f59e0b'
+              },
+              hover: {
+                background: '#291d09',
+                border: '#f59e0b'
+              }
+            },
+            borderWidth: 2.5,              /* Slightly thicker border to emphasize root entry */
+            shadow: {
+              enabled: true,
+              color: 'rgba(251, 191, 36, 0.35)', /* Golden glowing drop shadow! */
+              size: 15,
+              x: 0,
+              y: 0
+            }
           }
         },
         physics: {
@@ -1583,14 +1605,16 @@ A non-linear repository of semantic connections.
 
       // Format Node Array for Vis.js DataSet
       const visNodes = [];
+      const firstNodeId = definedNodesMap.size > 0 ? definedNodesMap.keys().next().value : null;
       
       // Defined Nodes
       definedNodesMap.forEach((info, name) => {
+        const isRoot = name === firstNodeId;
         visNodes.push({
           id: name,
           label: name,
-          group: 'defined',
-          title: `Defined Node: ${name}`
+          group: isRoot ? 'root' : 'defined',
+          title: isRoot ? `Root Entry Node: ${name}` : `Defined Node: ${name}`
         });
       });
       
@@ -1709,6 +1733,8 @@ A non-linear repository of semantic connections.
       // 1. Modify Node opacity and color
       const allNodes = nodesDataSet.get();
       allNodes.forEach(node => {
+        const firstNodeId = definedNodesMap.size > 0 ? definedNodesMap.keys().next().value : null;
+        const isRoot = node.id === firstNodeId;
         const isSelected = node.id === selectedId;
         const isConnected = connectedNodeIds.has(node.id);
         const isStub = node.group === 'stub';
@@ -1716,7 +1742,10 @@ A non-linear repository of semantic connections.
         if (isSelected) {
           nodesDataSet.update({
             id: node.id,
-            color: {
+            color: isRoot ? {
+              background: '#2c200a',
+              border: '#f59e0b',
+            } : {
               background: isStub ? '#1d1912' : '#1e2448',
               border: isStub ? '#f59e0b' : '#38bdf8',
             },
