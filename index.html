@@ -1464,6 +1464,16 @@ A non-linear repository of semantic connections.
           currentlySelectedNodeId = clickedNodeId;
           highlightNeighborhood(clickedNodeId);
           showDetailsCard(clickedNodeId);
+          
+          // Fit camera to frame only the selected node and its adjacent neighbors
+          const neighborhood = getNeighborhoodNodeIds(clickedNodeId);
+          visNetworkInstance.fit({
+            nodes: neighborhood,
+            animation: {
+              duration: 500,
+              easingFunction: 'easeInOutQuad'
+            }
+          });
         } else {
           clearHighlighting();
         }
@@ -1665,6 +1675,20 @@ A non-linear repository of semantic connections.
       }
     }
 
+    // Helper to extract a node and all of its directly connected neighbors
+    function getNeighborhoodNodeIds(nodeId) {
+      if (!nodeId) return [];
+      const adjacentEdges = edgesDataSet.get({
+        filter: (edge) => edge.from === nodeId || edge.to === nodeId
+      });
+      const connectedNodeIds = new Set([nodeId]);
+      adjacentEdges.forEach(edge => {
+        connectedNodeIds.add(edge.from);
+        connectedNodeIds.add(edge.to);
+      });
+      return Array.from(connectedNodeIds);
+    }
+
     // 3. GRAPH NEIGHBORHOOD HIGHLIGHTING FLOW
     function highlightNeighborhood(selectedId) {
       if (!selectedId) return;
@@ -1855,8 +1879,11 @@ A non-linear repository of semantic connections.
         visNetworkInstance.selectNodes([nodeId]);
         highlightNeighborhood(nodeId);
         showDetailsCard(nodeId);
-        visNetworkInstance.focus(nodeId, {
-          scale: 1.15,
+        
+        // Fit camera to frame only this node and its direct connections
+        const neighborhood = getNeighborhoodNodeIds(nodeId);
+        visNetworkInstance.fit({
+          nodes: neighborhood,
           animation: {
             duration: 500,
             easingFunction: 'easeInOutQuad'
@@ -2117,7 +2144,15 @@ A non-linear repository of semantic connections.
       detailsCard.addEventListener('transitionend', (e) => {
         if (e.propertyName === 'width' && visNetworkInstance) {
           visNetworkInstance.setSize(); // Force vis.js to update container boundaries
-          visNetworkInstance.fit({ animation: { duration: 300 } }); // Smoothly re-center the nodes
+          if (currentlySelectedNodeId) {
+            const neighborhood = getNeighborhoodNodeIds(currentlySelectedNodeId);
+            visNetworkInstance.fit({
+              nodes: neighborhood,
+              animation: { duration: 300 }
+            });
+          } else {
+            visNetworkInstance.fit({ animation: { duration: 300 } });
+          }
         }
       });
 
