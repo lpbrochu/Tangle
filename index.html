@@ -279,9 +279,9 @@
       background: rgba(255, 255, 255, 0.02);
     }
 
-    /* EDITOR PANEL (40% WIDTH) */
+    /* EDITOR PANEL (30% WIDTH) */
     .editor-panel {
-      width: 40%;
+      width: 30%;
       height: 100%;
       border-right: 1px solid var(--border-color);
       display: flex;
@@ -402,15 +402,24 @@
       gap: 4px;
     }
 
-    /* GRAPH CANVAS PANEL (60% WIDTH) */
+    /* GRAPH CANVAS PANEL (70% WIDTH) */
     .graph-panel {
-      width: 60%;
+      width: 70%;
       height: 100%;
       position: relative;
       background: var(--bg-primary);
       display: flex;
-      flex-direction: column;
+      flex-direction: row; /* Sideways flex layout so sidebar docks alongside canvas */
       transition: var(--transition-smooth);
+    }
+
+    .graph-workspace {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      height: 100%;
+      min-width: 0; /* Enables flex container to contract below defaults when sidebar opens */
     }
 
     .canvas-container {
@@ -552,34 +561,57 @@
       box-shadow: 0 0 8px var(--accent-indigo-hover);
     }
 
-    /* FLOATING DETAILS OVERLAY PANEL */
+    /* DOCKED SIDEBAR DETAILS PANEL */
     .details-card {
-      position: absolute;
-      bottom: 20px;
-      right: 20px;
-      width: 340px;
-      max-height: 420px;
-      background: var(--bg-card);
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      border: 1px solid var(--border-color);
-      border-radius: 16px;
-      padding: 20px;
-      box-shadow: var(--shadow-premium);
+      width: 0;
+      height: 100%;
+      background: rgba(15, 19, 34, 0.4);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-left: 0 solid var(--border-color);
       display: flex;
       flex-direction: column;
-      gap: 16px;
       z-index: 20;
       opacity: 0;
-      transform: translateY(20px) scale(0.95);
       pointer-events: none;
-      transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease, border-color 0.3s ease;
+      overflow: hidden;
+      padding: 0;
+      box-shadow: var(--shadow-premium);
     }
 
     .details-card.active {
+      width: 320px;
       opacity: 1;
-      transform: translateY(0) scale(1);
       pointer-events: auto;
+      border-left: 1px solid var(--border-color);
+      padding: 20px;
+      background: var(--bg-secondary);
+    }
+
+    /* Prevents word-wrap jumping during sliding animation */
+    .sidebar-content-wrapper {
+      width: 280px;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+      overflow: hidden;
+    }
+
+    @media (max-width: 850px) {
+      .details-card.active {
+        width: 100%; /* Cover screen fully on mobile */
+        position: absolute;
+        top: 0;
+        right: 0;
+        height: 100%;
+        border-left: none;
+        z-index: 100;
+      }
+      .sidebar-content-wrapper {
+        width: 100%;
+      }
     }
 
     .card-header {
@@ -1003,88 +1035,93 @@
 
     <!-- RIGHT PANEL: INTERACTIVE FORCE GRAPH -->
     <section class="graph-panel" id="graph-side">
-      <!-- Toolbar overlay on canvas -->
-      <div class="canvas-toolbar">
-        <div class="toolbar-group">
-          <!-- Search box -->
-          <div class="search-wrapper">
-            <svg class="search-icon" viewBox="0 0 24 24">
-              <circle cx="11" cy="11" r="8"/>
-              <line x1="21" y1="21" x2="16.65" y2="16.65"/>
-            </svg>
-            <input 
-              type="text" 
-              id="graph-search" 
-              class="search-input" 
-              placeholder="Search thoughts..." 
-              list="search-suggestions"
-              autocomplete="off"
-            >
-            <datalist id="search-suggestions"></datalist>
-          </div>
-        </div>
-
-        <div class="toolbar-group">
-          <!-- Physics Toggle -->
-          <label class="toggle-wrapper" title="Toggle real-time particle simulation to arrange/lock nodes">
-            <span>Arrange Physics</span>
-            <span class="switch">
-              <input type="checkbox" id="physics-toggle" checked>
-              <span class="slider"></span>
-            </span>
-          </label>
-          
-          <!-- Zoom to Fit Button -->
-          <button id="zoom-fit-btn" class="btn icon-btn" title="Zoom/Pan network to center all thoughts">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
-          </button>
-        </div>
-      </div>
-
-      <!-- Actual Canvas Element -->
-      <div id="graph-canvas" class="canvas-container"></div>
-
-      <!-- Floating help button -->
-      <div class="help-button-floating" id="help-toggle" title="Show navigation help and keyboard hotkeys">?</div>
-
-      <!-- FLOATING DETAILS PANEL OVERLAY -->
-      <div class="details-card" id="details-card">
-        <div class="card-header">
-          <div class="card-title-group">
-            <h3 id="card-node-name">Node Name</h3>
-            <span id="card-node-badge" class="badge">Defined</span>
-          </div>
-          <button id="card-close-btn" class="close-btn" title="Dismiss details panel">&times;</button>
-        </div>
-        <div class="card-body">
-          <div class="card-section">
-            <label>Thoughts Preview</label>
-            <div id="card-node-preview" class="preview-text">No thoughts recorded yet.</div>
-          </div>
-          <div class="card-section">
-            <label>Connected Thoughts</label>
-            <div id="card-connections" class="chips-container">
-              <span class="no-links">None</span>
-            </div>
-          </div>
-          <div class="card-section" id="card-add-link-section">
-            <label>Link to Another Thought</label>
-            <div class="add-link-row">
+      <!-- Main Canvas Workspace Area -->
+      <div class="graph-workspace">
+        <!-- Toolbar overlay on canvas -->
+        <div class="canvas-toolbar">
+          <div class="toolbar-group">
+            <!-- Search box -->
+            <div class="search-wrapper">
+              <svg class="search-icon" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8"/>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+              </svg>
               <input 
                 type="text" 
-                id="card-add-link-input" 
-                placeholder="Search or type new node..." 
-                list="link-suggestions-list"
+                id="graph-search" 
+                class="search-input" 
+                placeholder="Search thoughts..." 
+                list="search-suggestions"
                 autocomplete="off"
               >
-              <button id="card-add-link-btn" class="btn btn-secondary" title="Create connection">+</button>
+              <datalist id="search-suggestions"></datalist>
             </div>
-            <datalist id="link-suggestions-list"></datalist>
+          </div>
+
+          <div class="toolbar-group">
+            <!-- Physics Toggle -->
+            <label class="toggle-wrapper" title="Toggle real-time particle simulation to arrange/lock nodes">
+              <span>Arrange Physics</span>
+              <span class="switch">
+                <input type="checkbox" id="physics-toggle" checked>
+                <span class="slider"></span>
+              </span>
+            </label>
+            
+            <!-- Zoom to Fit Button -->
+            <button id="zoom-fit-btn" class="btn icon-btn" title="Zoom/Pan network to center all thoughts">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+            </button>
           </div>
         </div>
-        <div class="card-footer">
-          <button id="card-jump-btn" class="btn btn-primary" title="Scroll text editor and highlight node header">Jump to Editor</button>
-          <button id="card-create-btn" class="btn btn-secondary" style="display: none;" title="Create standard H1 header in markdown to define this stub node">Create Note</button>
+
+        <!-- Actual Canvas Element -->
+        <div id="graph-canvas" class="canvas-container"></div>
+
+        <!-- Floating help button -->
+        <div class="help-button-floating" id="help-toggle" title="Show navigation help and keyboard hotkeys">?</div>
+      </div>
+
+      <!-- DOCKED DETAILS SIDEBAR PANEL -->
+      <div class="details-card" id="details-card">
+        <div class="sidebar-content-wrapper">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3 id="card-node-name">Node Name</h3>
+              <span id="card-node-badge" class="badge">Defined</span>
+            </div>
+            <button id="card-close-btn" class="close-btn" title="Dismiss details panel">&times;</button>
+          </div>
+          <div class="card-body">
+            <div class="card-section">
+              <label>Thoughts Preview</label>
+              <div id="card-node-preview" class="preview-text">No thoughts recorded yet.</div>
+            </div>
+            <div class="card-section">
+              <label>Connected Thoughts</label>
+              <div id="card-connections" class="chips-container">
+                <span class="no-links">None</span>
+              </div>
+            </div>
+            <div class="card-section" id="card-add-link-section">
+              <label>Link to Another Thought</label>
+              <div class="add-link-row">
+                <input 
+                  type="text" 
+                  id="card-add-link-input" 
+                  placeholder="Search or type new node..." 
+                  list="link-suggestions-list"
+                  autocomplete="off"
+                >
+                <button id="card-add-link-btn" class="btn btn-secondary" title="Create connection">+</button>
+              </div>
+              <datalist id="link-suggestions-list"></datalist>
+            </div>
+          </div>
+          <div class="card-footer">
+            <button id="card-jump-btn" class="btn btn-primary" title="Scroll text editor and highlight node header">Jump to Editor</button>
+            <button id="card-create-btn" class="btn btn-secondary" style="display: none;" title="Create standard H1 header in markdown to define this stub node">Create Note</button>
+          </div>
         </div>
       </div>
     </section>
@@ -1961,6 +1998,14 @@ A non-linear repository of semantic connections.
 
       // Card action hooks
       cardCloseBtn.addEventListener('click', clearHighlighting);
+
+      // Sidebar transition resize support to prevent node cutoffs
+      detailsCard.addEventListener('transitionend', (e) => {
+        if (e.propertyName === 'width' && visNetworkInstance) {
+          visNetworkInstance.setSize(); // Force vis.js to update container boundaries
+          visNetworkInstance.fit({ animation: { duration: 300 } }); // Smoothly re-center the nodes
+        }
+      });
       
       // Add connection actions
       cardAddLinkBtn.addEventListener('click', executeAddLink);
