@@ -1725,7 +1725,7 @@ A non-linear repository of semantic connections.
         } else if (isConnected) {
           nodesDataSet.update({
             id: node.id,
-            color: undefined, // Restore group default colors
+            color: null, // Restore group default colors by removing overrides
             font: { color: isStub ? '#cbd5e1' : '#f8fafc' },
             opacity: 1
           });
@@ -1733,7 +1733,7 @@ A non-linear repository of semantic connections.
           // Softly dim unrelated nodes (keep them faint but visible)
           nodesDataSet.update({
             id: node.id,
-            color: undefined, // Keep standard group background and border colors!
+            color: null, // Restore group default colors by removing overrides
             font: { color: isStub ? '#64748b' : '#94a3b8' },
             opacity: 0.22 // Perfectly faint but visible
           });
@@ -1758,7 +1758,7 @@ A non-linear repository of semantic connections.
           // Keep other connections visible but faint
           edgesDataSet.update({
             id: edge.id,
-            color: undefined, // Restore standard edge color
+            color: null, // Reset custom color override to let it use default faint color!
             width: 1.0,
             opacity: 0.15 // Perfectly faint but visible for tracing
           });
@@ -1775,7 +1775,7 @@ A non-linear repository of semantic connections.
         const isStub = node.group === 'stub';
         nodesDataSet.update({
           id: node.id,
-          color: undefined, // restore styles
+          color: null, // Reset custom color overrides
           font: { color: isStub ? '#94a3b8' : '#f8fafc' },
           opacity: 1
         });
@@ -1785,7 +1785,7 @@ A non-linear repository of semantic connections.
       allEdges.forEach(edge => {
         edgesDataSet.update({
           id: edge.id,
-          color: undefined,
+          color: null, // Reset custom color overrides
           width: 1.5,
           opacity: 1
         });
