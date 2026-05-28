@@ -1730,12 +1730,12 @@ A non-linear repository of semantic connections.
             opacity: 1
           });
         } else {
-          // Softly dim unrelated nodes (keep them readable but secondary)
+          // Softly dim unrelated nodes (keep them faint but visible)
           nodesDataSet.update({
             id: node.id,
             color: undefined, // Keep standard group background and border colors!
             font: { color: isStub ? '#64748b' : '#94a3b8' },
-            opacity: 0.40 // High readability, soft contrast
+            opacity: 0.22 // Perfectly faint but visible
           });
         }
       });
@@ -1755,12 +1755,12 @@ A non-linear repository of semantic connections.
             opacity: 1
           });
         } else {
-          // Keep other connections visible but thin and soft
+          // Keep other connections visible but faint
           edgesDataSet.update({
             id: edge.id,
             color: undefined, // Restore standard edge color
             width: 1.0,
-            opacity: 0.35 // Higher visibility for tracing other paths!
+            opacity: 0.15 // Perfectly faint but visible for tracing
           });
         }
       });
