@@ -1,0 +1,25 @@
+{
+  "name": "tangle",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lpbrochu/Tangle.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/lpbrochu/Tangle/issues"
+  },
+  "homepage": "https://github.com/lpbrochu/Tangle#readme",
+  "devDependencies": {
+    "vite": "^8.0.14"
+  }
+}
