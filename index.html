@@ -711,14 +711,7 @@
       color: var(--text-primary);
     }
 
-    .chip.chip-outgoing::after {
-      content: '→';
-      color: var(--accent-cyan);
-    }
-    .chip.chip-incoming::before {
-      content: '←';
-      color: var(--accent-indigo-hover);
-    }
+
 
     .no-links {
       font-size: 0.8rem;
@@ -1069,14 +1062,8 @@
             <div id="card-node-preview" class="preview-text">No thoughts recorded yet.</div>
           </div>
           <div class="card-section">
-            <label>Outgoing Relations</label>
-            <div id="card-outgoing-links" class="chips-container">
-              <span class="no-links">None</span>
-            </div>
-          </div>
-          <div class="card-section">
-            <label>Incoming References</label>
-            <div id="card-incoming-links" class="chips-container">
+            <label>Connected Thoughts</label>
+            <div id="card-connections" class="chips-container">
               <span class="no-links">None</span>
             </div>
           </div>
@@ -1090,7 +1077,7 @@
                 list="link-suggestions-list"
                 autocomplete="off"
               >
-              <button id="card-add-link-btn" class="btn btn-secondary" title="Create directed connection">+</button>
+              <button id="card-add-link-btn" class="btn btn-secondary" title="Create connection">+</button>
             </div>
             <datalist id="link-suggestions-list"></datalist>
           </div>
@@ -1212,8 +1199,7 @@ A non-linear repository of semantic connections.
     const cardAddLinkInput = document.getElementById('card-add-link-input');
     const cardAddLinkBtn = document.getElementById('card-add-link-btn');
     const linkSuggestionsList = document.getElementById('link-suggestions-list');
-    const cardOutgoingLinks = document.getElementById('card-outgoing-links');
-    const cardIncomingLinks = document.getElementById('card-incoming-links');
+    const cardConnections = document.getElementById('card-connections');
     const cardJumpBtn = document.getElementById('card-jump-btn');
     const cardCreateBtn = document.getElementById('card-create-btn');
 
@@ -1283,14 +1269,12 @@ A non-linear repository of semantic connections.
           width: 1.5,
           color: {
             color: 'rgba(148, 163, 184, 0.25)',
-            highlight: '#06b6d4',
-            hover: '#06b6d4'
+            highlight: '#38bdf8',
+            hover: '#38bdf8'
           },
           arrows: {
             to: {
-              enabled: true,
-              scaleFactor: 0.85,
-              type: 'arrow'
+              enabled: false
             }
           },
           smooth: {
@@ -1438,8 +1422,9 @@ A non-linear repository of semantic connections.
         });
       }
 
-      // Pass 2: Search content blocks for [[Wiki-Links]] to build directed relationships
+      // Pass 2: Search content blocks for [[Wiki-Links]] to build undirected relationships
       const wikiLinkRegex = /\[\[(.*?)\]\]/g;
+      const uniqueEdgesSet = new Set();
       
       parsedDefinedNodes.forEach((nodeInfo, nodeName) => {
         let match;
@@ -1450,11 +1435,19 @@ A non-linear repository of semantic connections.
           // Extract name. Support Obsidian piped labels: [[Actual Node|Label]]
           const targetName = match[1].split('|')[0].trim();
           if (targetName && targetName !== nodeName) {
-            rawEdges.push({
-              id: `${nodeName}->${targetName}`,
-              from: nodeName,
-              to: targetName
-            });
+            // Sort node names alphabetically to guarantee undirected uniqueness
+            const first = nodeName < targetName ? nodeName : targetName;
+            const second = nodeName < targetName ? targetName : nodeName;
+            const edgeId = `${first}-${second}`;
+            
+            if (!uniqueEdgesSet.has(edgeId)) {
+              uniqueEdgesSet.add(edgeId);
+              rawEdges.push({
+                id: edgeId,
+                from: first,
+                to: second
+              });
+            }
             allReferences.add(targetName);
           }
         }
@@ -1620,16 +1613,15 @@ A non-linear repository of semantic connections.
         }
       });
 
-      // 2. Modify Edge opacity and highlight outgoing vs incoming distinctively
+      // 2. Modify Edge opacity and highlight connected edges in a single glowing color
       const allEdges = edgesDataSet.get();
       allEdges.forEach(edge => {
         const isConnected = edge.from === selectedId || edge.to === selectedId;
         if (isConnected) {
-          const isOutgoing = edge.from === selectedId;
           edgesDataSet.update({
             id: edge.id,
             color: {
-              color: isOutgoing ? '#38bdf8' : '#818cf8', // Outgoing is cyan, Incoming is indigo
+              color: '#38bdf8', // Unified glowing cyan for all undirected connections
               inherit: false
             },
             width: 3,
@@ -1729,41 +1721,24 @@ A non-linear repository of semantic connections.
     }
 
     function populateConnectionChips(nodeId) {
-      cardOutgoingLinks.innerHTML = '';
-      cardIncomingLinks.innerHTML = '';
+      cardConnections.innerHTML = '';
 
-      const outgoing = [];
-      const incoming = [];
-
+      const connections = new Set();
       edgesDataSet.get().forEach(edge => {
-        if (edge.from === nodeId) outgoing.push(edge.to);
-        if (edge.to === nodeId) incoming.push(edge.from);
+        if (edge.from === nodeId) connections.add(edge.to);
+        if (edge.to === nodeId) connections.add(edge.from);
       });
 
-      // Outgoing Link Chips
-      if (outgoing.length > 0) {
-        outgoing.forEach(target => {
+      if (connections.size > 0) {
+        connections.forEach(target => {
           const chip = document.createElement('span');
-          chip.className = 'chip chip-outgoing';
+          chip.className = 'chip';
           chip.textContent = target;
           chip.addEventListener('click', () => selectAndFocusNode(target));
-          cardOutgoingLinks.appendChild(chip);
+          cardConnections.appendChild(chip);
         });
       } else {
-        cardOutgoingLinks.innerHTML = '<span class="no-links">None</span>';
-      }
-
-      // Incoming Link Chips
-      if (incoming.length > 0) {
-        incoming.forEach(source => {
-          const chip = document.createElement('span');
-          chip.className = 'chip chip-incoming';
-          chip.textContent = source;
-          chip.addEventListener('click', () => selectAndFocusNode(source));
-          cardIncomingLinks.appendChild(chip);
-        });
-      } else {
-        cardIncomingLinks.innerHTML = '<span class="no-links">None</span>';
+        cardConnections.innerHTML = '<span class="no-links">None</span>';
       }
     }
 
@@ -2005,10 +1980,13 @@ A non-linear repository of semantic connections.
           return;
         }
 
-        // Check if connection already exists
-        const edgeId = `${currentlySelectedNodeId}->${targetNode}`;
+        // Check if connection already exists (undirected sort)
+        const first = currentlySelectedNodeId < targetNode ? currentlySelectedNodeId : targetNode;
+        const second = currentlySelectedNodeId < targetNode ? targetNode : currentlySelectedNodeId;
+        const edgeId = `${first}-${second}`;
+        
         if (edgesDataSet.get(edgeId)) {
-          alert(`A connection from "${currentlySelectedNodeId}" to "${targetNode}" already exists!`);
+          alert(`A connection between "${currentlySelectedNodeId}" and "${targetNode}" already exists!`);
           return;
         }
 
