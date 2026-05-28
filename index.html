@@ -2120,9 +2120,33 @@ A non-linear repository of semantic connections.
             }
           }
 
-          // Insert "- [[Target Node]]"
-          const newLinkLine = `- [[${targetNode}]]`;
-          reSplitLines.splice(insertIndex, 0, newLinkLine);
+          // Check if there is only empty space between headerIndex and insertIndex
+          let isEmptyBlock = true;
+          for (let k = headerIndex + 1; k < insertIndex; k++) {
+            if (reSplitLines[k].trim() !== "") {
+              isEmptyBlock = false;
+              break;
+            }
+          }
+
+          if (isEmptyBlock) {
+            // It's a clean new node or an empty section.
+            // Remove any intermediate empty lines in this section to keep it perfectly adjacent
+            const linesToRemove = insertIndex - (headerIndex + 1);
+            if (linesToRemove > 0) {
+              reSplitLines.splice(headerIndex + 1, linesToRemove);
+            }
+            // Now insert right below the header
+            reSplitLines.splice(headerIndex + 1, 0, `- [[${targetNode}]]`);
+          } else {
+            // If there is existing content, append the link to the end of the block
+            // But let's make sure we don't append after a trailing empty line
+            while (insertIndex > headerIndex + 1 && reSplitLines[insertIndex - 1].trim() === "") {
+              insertIndex--;
+            }
+            reSplitLines.splice(insertIndex, 0, `- [[${targetNode}]]`);
+          }
+
           markdownEditor.value = reSplitLines.join('\n');
 
           // Trigger parse and update
