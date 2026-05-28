@@ -739,6 +739,41 @@
       padding: 8px 0;
     }
 
+    .add-link-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 4px;
+    }
+    
+    .add-link-row input {
+      flex: 1;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      color: var(--text-primary);
+      padding: 6px 10px;
+      border-radius: 6px;
+      font-family: var(--font-ui);
+      font-size: 0.8rem;
+      outline: none;
+      transition: var(--transition-smooth);
+    }
+    
+    .add-link-row input:focus {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: var(--accent-indigo);
+      box-shadow: 0 0 8px rgba(99, 102, 241, 0.15);
+    }
+    
+    .add-link-row button {
+      padding: 6px 12px;
+      font-size: 1.1rem;
+      line-height: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 6px;
+    }
+
     /* FLOATING HELP TOGGLE & LEGEND */
     .help-button-floating {
       position: absolute;
@@ -1045,6 +1080,20 @@
               <span class="no-links">None</span>
             </div>
           </div>
+          <div class="card-section" id="card-add-link-section">
+            <label>Link to Another Thought</label>
+            <div class="add-link-row">
+              <input 
+                type="text" 
+                id="card-add-link-input" 
+                placeholder="Search or type new node..." 
+                list="link-suggestions-list"
+                autocomplete="off"
+              >
+              <button id="card-add-link-btn" class="btn btn-secondary" title="Create directed connection">+</button>
+            </div>
+            <datalist id="link-suggestions-list"></datalist>
+          </div>
         </div>
         <div class="card-footer">
           <button id="card-jump-btn" class="btn btn-primary" title="Scroll text editor and highlight node header">Jump to Editor</button>
@@ -1153,13 +1202,16 @@ A non-linear repository of semantic connections.
     const tabGraph = document.getElementById('tab-graph');
     const editorSide = document.getElementById('editor-side');
     const graphSide = document.getElementById('graph-side');
-
-    // Details panel DOM Elements
     const detailsCard = document.getElementById('details-card');
     const cardNodeName = document.getElementById('card-node-name');
     const cardNodeBadge = document.getElementById('card-node-badge');
     const cardCloseBtn = document.getElementById('card-close-btn');
     const cardNodePreview = document.getElementById('card-node-preview');
+    
+    // Connection additions DOM
+    const cardAddLinkInput = document.getElementById('card-add-link-input');
+    const cardAddLinkBtn = document.getElementById('card-add-link-btn');
+    const linkSuggestionsList = document.getElementById('link-suggestions-list');
     const cardOutgoingLinks = document.getElementById('card-outgoing-links');
     const cardIncomingLinks = document.getElementById('card-incoming-links');
     const cardJumpBtn = document.getElementById('card-jump-btn');
@@ -1656,6 +1708,18 @@ A non-linear repository of semantic connections.
         cardCreateBtn.style.display = 'block';
       }
 
+      // Populate autocomplete suggestions for linking
+      cardAddLinkInput.value = '';
+      linkSuggestionsList.innerHTML = '';
+      const allNodeNames = Array.from(definedNodesMap.keys()).concat(Array.from(stubNodesSet));
+      allNodeNames.forEach(name => {
+        if (name !== nodeId) {
+          const option = document.createElement('option');
+          option.value = name;
+          linkSuggestionsList.appendChild(option);
+        }
+      });
+
       // Populate Connection Chips
       populateConnectionChips(nodeId);
     }
@@ -1922,6 +1986,89 @@ A non-linear repository of semantic connections.
 
       // Card action hooks
       cardCloseBtn.addEventListener('click', clearHighlighting);
+      
+      // Add connection actions
+      cardAddLinkBtn.addEventListener('click', executeAddLink);
+      cardAddLinkInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          executeAddLink();
+        }
+      });
+
+      function executeAddLink() {
+        if (!currentlySelectedNodeId) return;
+        const targetNode = cardAddLinkInput.value.trim();
+        if (!targetNode) return;
+
+        if (targetNode === currentlySelectedNodeId) {
+          alert("A thought cannot link to itself!");
+          return;
+        }
+
+        // Check if connection already exists
+        const edgeId = `${currentlySelectedNodeId}->${targetNode}`;
+        if (edgesDataSet.get(edgeId)) {
+          alert(`A connection from "${currentlySelectedNodeId}" to "${targetNode}" already exists!`);
+          return;
+        }
+
+        addWikiLinkInEditor(currentlySelectedNodeId, targetNode);
+        cardAddLinkInput.value = '';
+      }
+
+      function addWikiLinkInEditor(sourceNode, targetNode) {
+        let text = markdownEditor.value;
+        
+        // If the source node is currently a stub, define it first
+        const isStub = stubNodesSet.has(sourceNode);
+        if (isStub) {
+          convertStubToDefined(sourceNode);
+          text = markdownEditor.value;
+        }
+
+        const targetHeader = `# ${sourceNode}`;
+        const reSplitLines = markdownEditor.value.split('\n');
+        let headerIndex = -1;
+        for (let i = 0; i < reSplitLines.length; i++) {
+          if (reSplitLines[i].trim() === targetHeader) {
+            headerIndex = i;
+            break;
+          }
+        }
+
+        if (headerIndex !== -1) {
+          // Find the next H1 header or the end of the file
+          let insertIndex = reSplitLines.length;
+          for (let j = headerIndex + 1; j < reSplitLines.length; j++) {
+            if (reSplitLines[j].startsWith('# ')) {
+              insertIndex = j;
+              break;
+            }
+          }
+
+          // Insert "- [[Target Node]]"
+          const newLinkLine = `- [[${targetNode}]]`;
+          reSplitLines.splice(insertIndex, 0, newLinkLine);
+          markdownEditor.value = reSplitLines.join('\n');
+
+          // Trigger parse and update
+          parseAndUpdate();
+
+          // Enforce auto-arrange physics to ensure it settles instantly
+          if (!physicsToggle.checked) {
+            physicsToggle.checked = true;
+            if (visNetworkInstance) {
+              visNetworkInstance.setOptions({ physics: { enabled: true } });
+            }
+          }
+
+          // Keep the source node selected
+          setTimeout(() => {
+            selectAndFocusNode(sourceNode);
+          }, 50);
+        }
+      }
+
       cardJumpBtn.addEventListener('click', () => {
         if (currentlySelectedNodeId) {
           jumpToNodeInEditor(currentlySelectedNodeId);
