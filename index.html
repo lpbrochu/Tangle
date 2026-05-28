@@ -2062,12 +2062,14 @@ A non-linear repository of semantic connections.
       const canvasContainer = document.getElementById('graph-canvas');
       canvasContainer.addEventListener('wheel', (e) => {
         if (e.ctrlKey) {
-          // Pinch-to-zoom: let vis.js handle zooming natively
+          // Pinch-to-zoom: let vis.js handle zooming natively by propagating the event
           return;
         }
         
-        // Two-finger swipe: pan the canvas instead of zooming
+        // Two-finger swipe: pan the canvas instead of zooming.
+        // Intercept during Capture Phase and halt propagation so vis.js never triggers its built-in zoom.
         e.preventDefault();
+        e.stopPropagation();
         
         if (visNetworkInstance) {
           const scale = visNetworkInstance.getScale();
@@ -2081,7 +2083,7 @@ A non-linear repository of semantic connections.
             }
           });
         }
-      }, { passive: false });
+      }, { passive: false, capture: true });
       
       // Add connection actions
       cardAddLinkBtn.addEventListener('click', executeAddLink);
