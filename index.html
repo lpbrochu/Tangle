@@ -2100,6 +2100,21 @@ A non-linear repository of semantic connections.
           text = markdownEditor.value;
         }
 
+        // If the target node is not defined as an H1 header yet, define it too!
+        const isTargetUndefined = !definedNodesMap.has(targetNode);
+        if (isTargetUndefined) {
+          let currentText = markdownEditor.value;
+          if (currentText.length > 0 && !currentText.endsWith('\n')) {
+            currentText += '\n';
+          }
+          if (!currentText.endsWith('\n\n')) {
+            currentText += '\n';
+          }
+          currentText += `# ${targetNode}\n`;
+          markdownEditor.value = currentText;
+          parseAndUpdate();
+        }
+
         const targetHeader = `# ${sourceNode}`;
         const reSplitLines = markdownEditor.value.split('\n');
         let headerIndex = -1;
