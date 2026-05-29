@@ -1035,14 +1035,19 @@
     </div>
 
     <div class="header-actions">
-      <button id="reset-btn" class="btn" title="Reset text and graph to the microservice architecture default">
+      <button id="reset-btn" class="btn" title="Reset to the welcome graph">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/></svg>
-        Reset Default
+        Reset Welcome
+      </button>
+      <button id="import-json-btn" class="btn" title="Import graph nodes and links from a JSON file">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+        Import
       </button>
       <button id="export-json-btn" class="btn" title="Export graph nodes and links as a JSON file">
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
         Export
       </button>
+      <input type="file" id="import-file-input" accept=".json" style="display: none;">
     </div>
   </header>
 
@@ -1230,36 +1235,34 @@
   <!-- CORE LOGIC & DYNAMICS -->
   <script>
     // DEFAULT ARCHITECTURE NOTES AND CONNECTIONS
-    const DEFAULT_MARKDOWN = `# Semantic Web Editor
-This is the core entry point of the [[Semantic Web Editor]] project. It coordinates a split-screen markdown editor on the left with a highly reactive [[Vis.js Graph Engine]] on the right.
+    const DEFAULT_MARKDOWN = `# Welcome to Tangle
+Tangle is a semantic web editor for organic knowledge mapping. Build bidirectional connections to visualize your concepts dynamically.
 
-The editor uses a custom-tuned [[Debouncer Utility]] to parse text without causing main-thread stuttering or rendering lag. The goal of this application is to support organic, bidirectional knowledge mapping: a true [[Knowledge Graph]] that solves traditional linear hierarchy constraints.
+## Quick Actions
+- [[Create a New Graph]] — Clear this editor and start fresh.
+- [[Open Existing Graph]] — Import a previously exported JSON file.
+- [[Interactive Guide]] — Learn navigation and shortcuts.
 
-# Vis.js Graph Engine
-The rendering engine is built on Vis.js, utilizing a canvas particle system. It is responsible for:
-- Live spring-physics positioning.
-- Node styles (defined vs stub) and glowing drop shadows.
-- Micro-interactions: clicking a node dims unrelated paths and opens the floating details interface.
-- Resolving bidirectional connections to stubs such as [[UI Layout System]].
+# Create a New Graph
+To start building your own semantic web, delete this text and begin typing:
+1. Define a node using an H1 header: \`# My Node\`
+2. Connect it using double brackets: \`[[Connected Node]]\`
 
-# Debouncer Utility
-A critical utility script designed to limit execution frequency.
-- Monitors input changes, waiting for a 300ms idle period before running the [[Markdown Parser]].
-- Prevents expensive graph rebuilds or math-heavy physics calculations on every single keystroke.
-- Maintains high typing performance even with long documents.
+- [[Welcome to Tangle]]
 
-# Markdown Parser
-A state-machine written in vanilla JavaScript. It reads the editor's text block line-by-line:
-1. Recognizes H1 headings (\`# Title\`) to create nodes.
-2. Extracts Wiki-style double brackets (\`[[Reference]]\`) under headers to form directed relationships.
-3. Distinguishes fully defined content nodes from unresolved [[Stub Nodes]].
-4. Relies on the [[Debouncer Utility]] to orchestrate visual synchronization.
+# Open Existing Graph
+Click **Import** in the header or use the action button in the details panel to upload a previously exported \`.json\` thought-graph file.
+This will load all your thoughts, connections, and layouts.
 
-# Knowledge Graph
-A non-linear repository of semantic connections.
-- Enables thoughts to act as nodes and links to act as edges.
-- Supports many-to-many directed relationships (leaves connecting to multiple parents).
-- Highly popularized by modern tools like Obsidian, Roam, and this [[Semantic Web Editor]].
+- [[Welcome to Tangle]]
+
+# Interactive Guide
+- **Define Node**: Type \`# Node Name\` on a new line.
+- **Link Node**: Type \`[[Target Node]]\` in the body text under any node.
+- **Stub Nodes**: Linking to non-existent nodes creates a dotted "stub". Click it on the graph and click *Create Note* to instantiate it instantly.
+- **Controls**: Drag to pan, scroll to zoom, click a node to focus its connections.
+
+- [[Welcome to Tangle]]
 `;
 
     // APP GLOBAL STATES
@@ -1893,7 +1896,56 @@ A non-linear repository of semantic connections.
       cardNodeBadge.className = `badge ${isDefined ? 'defined' : 'stub'}`;
 
       // Setup Content Snippet
-      if (isDefined) {
+      if (nodeId === 'Create a New Graph') {
+        cardNodePreview.innerHTML = `
+          <p style="margin-bottom: 12px; color: var(--text-secondary);">Ready to build your own knowledge graph? Start with a clean slate.</p>
+          <button id="action-clear-graph" class="btn btn-primary" style="width: 100%; justify-content: center; background: #ef4444; border-color: #ef4444; box-shadow: 0 0 10px rgba(239, 68, 68, 0.2);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M3 6h18M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M10 11v6M14 11v6"/></svg>
+            Clear Editor &amp; Start Fresh
+          </button>
+        `;
+        document.getElementById('action-clear-graph').addEventListener('click', () => {
+          if (confirm("Are you sure you want to clear the current graph and start fresh? All unsaved modifications will be lost.")) {
+            markdownEditor.value = "# My New Node\nType your first thought here...\n";
+            parseAndUpdate();
+            clearHighlighting();
+            if (visNetworkInstance) {
+              visNetworkInstance.fit({ animation: { duration: 500 } });
+            }
+          }
+        });
+        cardNodePreview.classList.remove('stub-info');
+        cardJumpBtn.style.display = 'none';
+        cardCreateBtn.style.display = 'none';
+      } else if (nodeId === 'Open Existing Graph') {
+        cardNodePreview.innerHTML = `
+          <p style="margin-bottom: 12px; color: var(--text-secondary);">Load a previously exported <code>.json</code> file to restore your semantic web.</p>
+          <button id="action-import-graph" class="btn btn-primary" style="width: 100%; justify-content: center; background: var(--accent-indigo); border-color: var(--accent-indigo);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+            Upload JSON File
+          </button>
+        `;
+        document.getElementById('action-import-graph').addEventListener('click', () => {
+          document.getElementById('import-file-input').click();
+        });
+        cardNodePreview.classList.remove('stub-info');
+        cardJumpBtn.style.display = 'none';
+        cardCreateBtn.style.display = 'none';
+      } else if (nodeId === 'Interactive Guide') {
+        cardNodePreview.innerHTML = `
+          <p style="margin-bottom: 12px; color: var(--text-secondary);">View detailed controls, shortcuts, and syntaxes to master Tangle.</p>
+          <button id="action-open-help" class="btn btn-secondary" style="width: 100%; justify-content: center; border: 1px solid var(--accent-indigo);">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 6px;"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3M12 17h.01"/></svg>
+            Open Interactive Guide
+          </button>
+        `;
+        document.getElementById('action-open-help').addEventListener('click', () => {
+          helpModal.showModal();
+        });
+        cardNodePreview.classList.remove('stub-info');
+        cardJumpBtn.style.display = 'none';
+        cardCreateBtn.style.display = 'none';
+      } else if (isDefined) {
         const nodeInfo = definedNodesMap.get(nodeId);
         // Strips surrounding double brackets from the text preview so it reads clean
         let cleanText = nodeInfo.contentText.replace(/\[\[(.*?)\]\]/g, '$1');
@@ -2124,6 +2176,30 @@ A non-linear repository of semantic connections.
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+    }
+
+    // Import Graph JSON Utility
+    function importGraphData(file) {
+      const reader = new FileReader();
+      reader.onload = function(event) {
+        try {
+          const importedData = JSON.parse(event.target.result);
+          if (importedData && typeof importedData.rawMarkdown === 'string') {
+            markdownEditor.value = importedData.rawMarkdown;
+            parseAndUpdate();
+            clearHighlighting();
+            if (visNetworkInstance) {
+              visNetworkInstance.fit({ animation: { duration: 500 } });
+            }
+            alert("Graph successfully imported!");
+          } else {
+            alert("Invalid graph file format. Make sure it's a JSON file exported from Tangle.");
+          }
+        } catch (e) {
+          alert("Error parsing JSON file: " + e.message);
+        }
+      };
+      reader.readAsText(file);
     }
 
     // MOBILE TAB DISPLAY MANAGEMENT
@@ -2431,7 +2507,7 @@ A non-linear repository of semantic connections.
 
       // Header Actions
       resetBtn.addEventListener('click', () => {
-        if (confirm("Are you sure you want to reset the editor to the default architecture notes? All unsaved modifications will be lost.")) {
+        if (confirm("Are you sure you want to reset the editor to the welcome graph? All unsaved modifications will be lost.")) {
           markdownEditor.value = DEFAULT_MARKDOWN;
           parseAndUpdate();
           clearHighlighting();
@@ -2440,6 +2516,21 @@ A non-linear repository of semantic connections.
           }
         }
       });
+
+      const importBtn = document.getElementById('import-json-btn');
+      const importFileInput = document.getElementById('import-file-input');
+
+      importBtn.addEventListener('click', () => {
+        importFileInput.click();
+      });
+
+      importFileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+          importGraphData(e.target.files[0]);
+          e.target.value = ''; // clear selection
+        }
+      });
+
       exportBtn.addEventListener('click', exportGraphData);
 
       // Native help dialog flow
