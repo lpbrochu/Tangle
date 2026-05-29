@@ -1820,12 +1820,12 @@ This will load all your thoughts, connections, and layouts.
             opacity: 1
           });
         } else {
-          // Softly dim unrelated nodes (keep them faint but visible)
+          // Softly dim unrelated nodes (keep them visible but secondary)
           nodesDataSet.update({
             id: node.id,
             color: null, // Restore group default colors by removing overrides
             font: { color: isStub ? '#64748b' : '#94a3b8' },
-            opacity: 0.22 // Perfectly faint but visible
+            opacity: 0.5 // Decreased transparency for better legibility
           });
         }
       });
@@ -1845,12 +1845,12 @@ This will load all your thoughts, connections, and layouts.
             opacity: 1
           });
         } else {
-          // Keep other connections visible but faint
+          // Keep other connections visible
           edgesDataSet.update({
             id: edge.id,
             color: null, // Reset custom color override to let it use default faint color!
             width: 1.0,
-            opacity: 0.15 // Perfectly faint but visible for tracing
+            opacity: 0.35 // Decreased transparency for better tracking
           });
         }
       });
